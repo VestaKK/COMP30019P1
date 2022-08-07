@@ -6,10 +6,10 @@ implementation here.
 Please ensure your student details are specified below (*exactly* as on UniMelb
 records):
 
-**Name:** ... \
-**Student Number:** XXXXXXX \
-**Username:** ... \
-**Email:** ...@student.unimelb.edu.au
+**Name:** Matthew Thao Dang Pham \
+**Student Number:** 1273607 \
+**Username:** MATTHEWTP \
+**Email:** matthewtp@student.unimelb.edu.au
 
 ## Completed stages
 
