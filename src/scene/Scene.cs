@@ -59,11 +59,47 @@ namespace RayTracer
             {   
                 Ray ray = new Ray(camera, NormalisedWorldCoordinate((i + 0.5) * gridSizeX, (j + 0.5) * gridSizeY, 1.0d, outputImage));
 
-                foreach(var entity in entities)
+                foreach(var entity in this.entities)
                 {
-                    if (entity.Intersect(ray) != null)
+                    RayHit hit = entity.Intersect(ray);
+                    Color color = new Color(0.0f, 0.0f, 0.0f);
+
+                    if (hit != null)
                     {
-                        outputImage.SetPixel(i, j, entity.Material.Color);
+                        Vector3 hitNormal = hit.Normal.Normalized();
+                        Boolean directLight = true;
+                        foreach (PointLight pointLight in this.lights)
+                        {
+                            Vector3 hit2Light = (pointLight.Position - hit.Position).Normalized();
+                            Ray lightRay = new Ray(pointLight.Position, -hit2Light);
+
+                            foreach(var otherEntity in this.entities) 
+                            {
+                                if (otherEntity.Equals(entity)) continue;
+
+                                RayHit hit2 = otherEntity.Intersect(lightRay); 
+
+                                if (hit2 != null) 
+                                {
+                                    Vector3 cmphit1 = hit.Position - pointLight.Position;
+                                    Vector3 cmphit2 = hit2.Position - pointLight.Position;
+                                    
+                                    if (cmphit1.Dot(cmphit2) < cmphit1.Dot(cmphit1))
+                                    {
+                                        directLight = false;
+                                        break;
+                                    }
+                                }
+                            }
+
+                            if (!directLight) break;
+
+                            if (hitNormal.Dot(hit2Light) > 0 ) 
+                            {
+                                color += (entity.Material.Color * pointLight.Color) * hitNormal.Dot(hit2Light);
+                            }
+                        }
+                        outputImage.SetPixel(i, j, color);
                     }
                 }
             }
