@@ -33,6 +33,7 @@ namespace RayTracer
         {
             Vector3 D = ray.Direction;
             Vector3 O = ray.Origin;
+            
             double t = 0;
 
             // Calculate the intersection between ray and line;

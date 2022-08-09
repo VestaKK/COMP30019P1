@@ -31,8 +31,25 @@ namespace RayTracer
         /// <returns>Hit data (or null if no intersection)</returns>
         public RayHit Intersect(Ray ray)
         {
-            
-            return null;
+            Vector3 Orig2Cent = this.center - ray.Origin;
+
+            // We make a triangle between the origin, the center of the circle
+            // and a point on the ray perpendicular to the ray that also
+            // points to the center 
+            double triAdj = Orig2Cent.Dot(ray.Direction.Normalized());
+            double triOpp = Math.Sqrt(Orig2Cent.LengthSq() - triAdj * triAdj);
+
+            // Apparently this check is enough to tell that the ray is hitting the 
+            // Sphere, but we still have to compute the points of intersection
+            if (triOpp > this.radius)
+            {
+                return null;
+            } 
+            else
+            {
+                RayHit hit = new RayHit(this.center, this.center, this.center, this.material);
+                return hit;
+            }
         }
 
         /// <summary>

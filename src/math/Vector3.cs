@@ -90,6 +90,7 @@ namespace RayTracer
         /// <param name="a">First vector</param>
         /// <param name="b">Second vector</param>
         /// <returns>Summed vector</returns>
+        
         public static Vector3 operator +(Vector3 a, Vector3 b)
         {
             return new Vector3(a.X + b.X, a.Y + b.Y, a.Z + b.Z);

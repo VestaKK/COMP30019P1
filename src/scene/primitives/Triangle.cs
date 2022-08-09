@@ -35,24 +35,22 @@ namespace RayTracer
             Vector3 v0 = this.v0;
             Vector3 v1 = this.v1;
             Vector3 v2 = this.v2;
-            Vector3 origin = ray.Origin;
-            Vector3 direction = ray.Direction;
             
-            Vector3 normal = (v1 - v0).Cross(v2 - v0);
+            Vector3 triNormal = (v1 - v0).Cross(v2 - v0);
 
-            if (normal.Dot(direction) != 0) 
+            if (triNormal.Dot(ray.Direction) != 0) 
             {
                 // Literally copying from the slides lmao
-                double t = normal.Dot(v0 - origin) / direction.Dot(normal);
-                Vector3 point = origin + t * direction;
+                double t = triNormal.Dot(v0 - ray.Origin) / ray.Direction.Dot(triNormal);
+                Vector3 point = ray.Origin + t * ray.Direction;
 
                 // Finding if plane intersection point lies in the triangle
                 // Someting about barycentric coordinates
-                if ( normal.Dot((v1 - v0).Cross(point - v0)) >= 0 &&
-                     normal.Dot((v2 - v1).Cross(point - v1)) >= 0 &&
-                     normal.Dot((v0 - v2).Cross(point - v2)) >= 0 )
+                if ( triNormal.Dot((v1 - v0).Cross(point - v0)) >= 0 &&
+                     triNormal.Dot((v2 - v1).Cross(point - v1)) >= 0 &&
+                     triNormal.Dot((v0 - v2).Cross(point - v2)) >= 0 )
                 {
-                    RayHit hit = t > 0 ? new RayHit(point, normal, direction, this.material) : null;
+                    RayHit hit = t > 0 ? new RayHit(point, triNormal, ray.Direction, this.material) : null;
                     return hit;
                 }
             }   
