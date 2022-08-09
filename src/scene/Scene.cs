@@ -50,7 +50,14 @@ namespace RayTracer
         /// <param name="outputImage">Image to store render output</param>
         public void Render(Image outputImage)
         {
-            // Begin writing your code here...
+            Vector3 test = new Vector3(1.0f, 1.0f, 1.0f);
+            Vector3 test2 = new Vector3(-5.0f, -3.0f, -4.0f);
+
+            Vector3 test3 = test.Normalized();
+            double dotTest = test.LengthSq();
+            
+            System.Console.WriteLine(test3.ToString());
+            System.Console.WriteLine(dotTest);
         }
 
     }
