@@ -50,15 +50,42 @@ namespace RayTracer
         /// <param name="outputImage">Image to store render output</param>
         public void Render(Image outputImage)
         {
-            Vector3 test = new Vector3(1.0f, 1.0f, 1.0f);
-            Vector3 test2 = new Vector3(-5.0f, -3.0f, -4.0f);
+            Vector3 camera = options.CameraPosition;
+            double gridSizeX = 1.0d/outputImage.Width;
+            double gridSizeY = 1.0d/outputImage.Height;
 
-            Vector3 test3 = test.Normalized();
-            double dotTest = test.LengthSq();
-            
-            System.Console.WriteLine(test3.ToString());
-            System.Console.WriteLine(dotTest);
+            for (int i=0; i < outputImage.Width; i++)
+            for (int j=0; j < outputImage.Height; j++)
+            {   
+                Ray ray = new Ray(camera, NormalisedWorldCoordinate((i + 0.5) * gridSizeX, (j + 0.5) * gridSizeY, 1.0d, outputImage));
+
+                foreach(var entity in entities)
+                {
+                    if (entity.Intersect(ray) != null)
+                    {
+                        outputImage.SetPixel(i, j, entity.Material.Color);
+                    }
+                }
+            }
         }
 
+        private Vector3 NormalisedWorldCoordinate(double x, double y, double z, Image outputImage)
+        {
+            // Defining plane as it appears when embedded in the scene
+            double fieldOfView = 60.0d;
+            double aspectRatio = outputImage.Width / outputImage.Height;
+            double Deg2Rad = Math.PI/180.0d;
+
+            // 1.0d not necessary, but it represent the distance from the camera
+            double fovLength = 2.0d * Math.Tan(fieldOfView*Deg2Rad / 2) * 1.0d;
+            double imagePlaneHeight = fovLength;
+            double imagePlaneWidth = fovLength * aspectRatio;
+
+            double cx = (x - 0.5d) * imagePlaneWidth;
+            double cy = (0.5d - y) * imagePlaneHeight;
+            double cz = z;
+
+            return new Vector3(cx, cy, cz);
+        }
     }
 }

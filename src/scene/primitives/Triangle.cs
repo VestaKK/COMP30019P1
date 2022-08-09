@@ -32,7 +32,30 @@ namespace RayTracer
         /// <returns>Hit data (or null if no intersection)</returns>
         public RayHit Intersect(Ray ray)
         {
-            // Write your code here...
+            Vector3 v0 = this.v0;
+            Vector3 v1 = this.v1;
+            Vector3 v2 = this.v2;
+            Vector3 origin = ray.Origin;
+            Vector3 direction = ray.Direction;
+            
+            Vector3 normal = (v1 - v0).Cross(v2 - v0);
+
+            if (normal.Dot(direction) != 0) 
+            {
+                // Literally copying from the slides lmao
+                double t = normal.Dot(v0 - origin) / direction.Dot(normal);
+                Vector3 point = origin + t * direction;
+
+                // Finding if plane intersection point lies in the triangle
+                if ( normal.Dot((v1 - v0).Cross(point - v0)) >= 0 &&
+                     normal.Dot((v2 - v1).Cross(point - v1)) >= 0 &&
+                     normal.Dot((v0 - v2).Cross(point - v2)) >= 0 )
+                {
+                    RayHit hit = t > 0 ? new RayHit(point, normal, direction, this.material) : null;
+                    return hit;
+                }
+            }   
+
             return null;
         }
 
