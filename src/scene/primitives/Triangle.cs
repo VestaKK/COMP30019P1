@@ -47,6 +47,7 @@ namespace RayTracer
                 Vector3 point = origin + t * direction;
 
                 // Finding if plane intersection point lies in the triangle
+                // Someting about barycentric coordinates
                 if ( normal.Dot((v1 - v0).Cross(point - v0)) >= 0 &&
                      normal.Dot((v2 - v1).Cross(point - v1)) >= 0 &&
                      normal.Dot((v0 - v2).Cross(point - v2)) >= 0 )
