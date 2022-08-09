@@ -53,8 +53,7 @@ namespace RayTracer
                     RayHit hit = t > 0 ? new RayHit(point, triNormal, ray.Direction, this.material) : null;
                     return hit;
                 }
-            }   
-
+            } 
             return null;
         }
 

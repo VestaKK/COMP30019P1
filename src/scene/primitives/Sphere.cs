@@ -34,22 +34,40 @@ namespace RayTracer
             Vector3 Orig2Cent = this.center - ray.Origin;
 
             // We make a triangle between the origin, the center of the circle
-            // and a point on the ray perpendicular to the ray that also
-            // points to the center 
+            // and the shortest vector between the center of the circle and 
+            // the ray, and solve for the triangle's side lengths.
             double triAdj = Orig2Cent.Dot(ray.Direction.Normalized());
-            double triOpp = Math.Sqrt(Orig2Cent.LengthSq() - triAdj * triAdj);
+
+            // Using squared values where possible to increase speed of calculations
+            double triHypSq = Orig2Cent.LengthSq();
+            double triAdjSq = triAdj * triAdj;
+            double triOppSq = triHypSq - triAdjSq;
+            double radiusSq = this.radius*this.radius;
 
             // Apparently this check is enough to tell that the ray is hitting the 
             // Sphere, but we still have to compute the points of intersection
-            if (triOpp > this.radius)
+            if (triOppSq < radiusSq)
             {
-                return null;
-            } 
-            else
-            {
-                RayHit hit = new RayHit(this.center, this.center, this.center, this.material);
+                // Calculate distance from center of Sphere to the intersectioni points
+                // We form a new triangle between the center, the intersection points
+                // and the vector previously
+                double innerTriAdj = Math.Sqrt(radiusSq - triOppSq);
+                
+                // We can now determine our intersection points
+                double t1 = triAdj - innerTriAdj;
+                double t2 = triAdj + innerTriAdj;
+                Vector3 p1 = ray.Origin + t1 * ray.Direction;
+                Vector3 p2 = ray.Origin + t2 * ray.Direction;
+                Vector3 p1Normal = p1 - center;
+                Vector3 p2Normal = p2 - center;
+
+                // Since our ray can only see p1 at the moment
+                // we only need to return info about p1
+                RayHit hit = new RayHit(p1, p1Normal, ray.Direction, this.material);
                 return hit;
-            }
+            } 
+
+            return null;
         }
 
         /// <summary>
