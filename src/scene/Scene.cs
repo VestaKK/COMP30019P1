@@ -50,6 +50,7 @@ namespace RayTracer
         /// <param name="outputImage">Image to store render output</param>
         public void Render(Image outputImage)
         {
+            
             Vector3 camera = this.options.CameraPosition;
             double gridSizeX = 1.0d/outputImage.Width;
             double gridSizeY = 1.0d/outputImage.Height;
@@ -57,7 +58,7 @@ namespace RayTracer
             for (int i=0; i < outputImage.Width; i++)
             for (int j=0; j < outputImage.Height; j++)
             {   
-                Ray ray = new Ray(camera, (ImagePlaneCoordinate((i + 0.5d) * gridSizeX, (j + 0.5d) * gridSizeY, 1.0d, outputImage) - camera).Normalized());
+                Ray ray = new Ray(camera, (ImagePlaneCoordinate((i + 0.5d) * gridSizeX, (j + 0.5d) * gridSizeY, outputImage) - camera).Normalized());
 
                 foreach(var entity in this.entities)
                 {
@@ -65,7 +66,7 @@ namespace RayTracer
                     
                     // Only shade in pixel if there is a hit detected;
                     // Condense into a function;
-                    if (hit != null && LineOfSight(hit.Position, camera, entity))
+                    if (hit != null && LineOfSight(hit.Position, camera))
                     {
                         Color pixelColor = CalculateColor(hit, entity);
                         outputImage.SetPixel(i, j, pixelColor);
@@ -75,26 +76,22 @@ namespace RayTracer
             }
         }
 
-
-        private Boolean LineOfSight(Vector3 origin, Vector3 destination, SceneEntity entity) 
+        private Boolean LineOfSight(Vector3 origin, Vector3 destination) 
         {
-            Vector3 orig2Dest = (destination - origin).Normalized();
+            Vector3 adjustedOrigin = origin + 0.0001d * (destination - origin);
+            Vector3 orig2Dest = (destination - adjustedOrigin).Normalized();
             Ray lineOfSight = new Ray(destination, -orig2Dest); 
             Boolean output = true;
 
-            foreach(var otherEntity in this.entities)
+            foreach(var entity in this.entities)
             {
-                // Only Works for planar and convex objects
-                // TODO: Find a solution to thi later
-                if (otherEntity.Equals(entity)) continue;
-
-                RayHit anotherHit = otherEntity.Intersect(lineOfSight); 
-
-                if (anotherHit != null) 
+                RayHit hit = entity.Intersect(lineOfSight); 
+                
+                if (hit != null) 
                 {
-                    Vector3 adjustedOrigin = origin + 0.0000001 * orig2Dest;
+
                     Vector3 cmphit1 = adjustedOrigin - destination;
-                    Vector3 cmphit2 = anotherHit.Position - destination;
+                    Vector3 cmphit2 = hit.Position - destination;
                         
                     if (cmphit1.Dot(cmphit2) < cmphit1.LengthSq() && 
                         cmphit1.Dot(cmphit2) > 0)
@@ -111,32 +108,46 @@ namespace RayTracer
         private Color CalculateColor(RayHit hit, SceneEntity entity) 
         {
             Vector3 hitNormal = hit.Normal.Normalized();
-            Vector3 adjustedHitPosition = hit.Position - 0.0000000001 * hit.Incident;
+            
             Color pixelColor = new Color(0.0f, 0.0f, 0.0f);
             // Check if the hit Object is illuminated by any pointlights in the scene
             foreach (var pointLight in this.lights) 
             {
+                // Prevents Shadow acne
+                Vector3 hit2Point = (pointLight.Position - hit.Position).Normalized();
+
                 // Check if the Soace between the entity and the pointlight is clear
-                Boolean directLight = LineOfSight(adjustedHitPosition, pointLight.Position, entity);
+                Boolean directLight = LineOfSight(hit.Position, pointLight.Position);
                 
                 // We react accordingly based on the type of material that has been hit
-                if (entity.Material.Type == Material.MaterialType.Diffuse) 
+                if (directLight) 
                 {
-                    // Diffuse Lighting
-                    Vector3 hit2Light = (pointLight.Position - adjustedHitPosition).Normalized();
-                    if (hitNormal.Dot(hit2Light) > 0 && directLight)
+                    Vector3 hit2Light = (pointLight.Position - hit.Position).Normalized();
+                    switch(entity.Material.Type)
                     {
-                        pixelColor += (entity.Material.Color * pointLight.Color) * hitNormal.Dot(hit2Light);
-                    }
+                        case Material.MaterialType.Diffuse:
+                            if (hitNormal.Dot(hit2Light) > 0)
+                            {
+                                pixelColor += (entity.Material.Color * pointLight.Color) * hitNormal.Dot(hit2Light);
+                            }
+                            break;
+                    
+                        case Material.MaterialType.Reflective:
+                            pixelColor = RecursiveReflections(hit, pixelColor, 0, entity);
+                            break;
+                        
+                        case Material.MaterialType.Refractive:
+                            if (hitNormal.Dot(hit2Light) > 0 && directLight)
+                            {
+                                pixelColor += (entity.Material.Color * pointLight.Color) * hitNormal.Dot(hit2Light);
+                            }
+                            break;
+                        
+                        default:
+                            break;
+                    }   
                 }
-
-                // Reflective
-                if (entity.Material.Type == Material.MaterialType.Reflective || 
-                    entity.Material.Type == Material.MaterialType.Refractive && 
-                    directLight)
-                {   
-                    pixelColor = RecursiveReflections(hit, pixelColor, 0, entity);
-                }   
+                
             }
             return pixelColor;
         }
@@ -144,32 +155,29 @@ namespace RayTracer
         private Color RecursiveReflections(RayHit currHit, Color pixelColor, int numReflections, SceneEntity currEntity) 
         {
             Vector3 reflectedVector = currHit.Incident - 2 * currHit.Incident.Dot(currHit.Normal.Normalized()) * currHit.Normal.Normalized(); 
-
-            Vector3 adjustedHitPosition = currHit.Position + 0.0000000001 * reflectedVector.Normalized();
-            Ray reflectedRay = new Ray(adjustedHitPosition, reflectedVector.Normalized());
+            Ray reflectedRay = new Ray(currHit.Position, reflectedVector.Normalized());
 
             foreach (var nextEntity in this.entities) 
             {   
-
                 RayHit nextHit = nextEntity.Intersect(reflectedRay);
 
-                if (nextHit != null && numReflections < 10 && LineOfSight(nextHit.Position, adjustedHitPosition, currEntity))
+                if (nextHit != null && numReflections < 5 && LineOfSight(nextHit.Position, currHit.Position))
                 {
-                    if (nextEntity.Material.Type == Material.MaterialType.Diffuse) 
+                    if (nextEntity.Material.Type == Material.MaterialType.Reflective)
+                    {
+                        pixelColor = RecursiveReflections(nextHit, pixelColor, numReflections + 1, nextEntity);
+                    }
+                    else 
                     {
                         pixelColor = CalculateColor(nextHit, nextEntity);
                         break;
-                    }
-                    else if (nextEntity.Material.Type == Material.MaterialType.Reflective || nextEntity.Material.Type == Material.MaterialType.Refractive)
-                    {
-                        pixelColor = RecursiveReflections(nextHit, pixelColor, numReflections + 1, nextEntity);
                     }
                 }
             }
             return pixelColor;
         }
 
-        private Vector3 ImagePlaneCoordinate(double x, double y, double z, Image outputImage)
+        private Vector3 ImagePlaneCoordinate(double x, double y, Image outputImage)
         {
             // Defining plane as it appears when embedded in the scene
             double fieldOfView = 60.0d;
@@ -183,7 +191,7 @@ namespace RayTracer
 
             double cx = (x - 0.5d) * imagePlaneWidth;
             double cy = (0.5d - y) * imagePlaneHeight;
-            double cz = z;
+            double cz = 1.0d;
 
             return new Vector3(cx, cy, cz);
         }

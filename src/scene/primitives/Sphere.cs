@@ -37,7 +37,7 @@ namespace RayTracer
             // We make a triangle between the origin, the center of the circle
             // and the shortest vector between the center of the circle and 
             // the ray, and solve for the triangle's side lengths.
-            double triAdj = Orig2Cent.Dot(ray.Direction.Normalized());
+            double triAdj = Orig2Cent.Dot(ray.Direction);
 
             // Using squared values where possible to increase speed of calculations
             double triHypSq = Orig2Cent.LengthSq();

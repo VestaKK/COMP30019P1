@@ -3,7 +3,7 @@ Material "GreyMat" Diffuse (.5, .5, .5) 1
 Material "RedMat" Diffuse (1, .5, .5) 1
 Material "GreenMat" Diffuse (.5, 1, .5) 1
 Material "BlueMat" Diffuse (.5, .5, 1) 1
-Material "GlassMat" Refractive (0, 0, 0) 1.4
+Material "GlassMat" Refractive (.5, .5, 1) 1.4
 Material "MirrorMat" Reflective (0, 0, 0) 1
 
 PointLight "Light1" (0, 0.8, 1.5) (.5, .5, .5)
