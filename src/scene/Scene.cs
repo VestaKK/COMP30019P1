@@ -65,7 +65,7 @@ namespace RayTracer
                     
                     // Only shade in pixel if there is a hit detected;
                     // Condense into a function;
-                    if (hit != null && SpaceIsClear(hit.Position, camera, entity))
+                    if (hit != null && LineOfSight(hit.Position, camera, entity))
                     {
                         Color pixelColor = CalculateColor(hit, entity);
                         outputImage.SetPixel(i, j, pixelColor);
@@ -76,7 +76,7 @@ namespace RayTracer
         }
 
 
-        private Boolean SpaceIsClear(Vector3 origin, Vector3 destination, SceneEntity entity) 
+        private Boolean LineOfSight(Vector3 origin, Vector3 destination, SceneEntity entity) 
         {
             Vector3 orig2Dest = (destination - origin).Normalized();
             Ray lineOfSight = new Ray(destination, -orig2Dest); 
@@ -92,11 +92,12 @@ namespace RayTracer
 
                 if (anotherHit != null) 
                 {
-                    Vector3 adjustedOrigin = origin + 0.0000000001 * orig2Dest;
+                    Vector3 adjustedOrigin = origin + 0.0000001 * orig2Dest;
                     Vector3 cmphit1 = adjustedOrigin - destination;
                     Vector3 cmphit2 = anotherHit.Position - destination;
                         
-                    if (cmphit1.Dot(cmphit2) < cmphit1.LengthSq())
+                    if (cmphit1.Dot(cmphit2) < cmphit1.LengthSq() && 
+                        cmphit1.Dot(cmphit2) > 0)
                     {
                         output = false;
                         break;
@@ -116,14 +117,13 @@ namespace RayTracer
             foreach (var pointLight in this.lights) 
             {
                 // Check if the Soace between the entity and the pointlight is clear
-                Boolean directLight = SpaceIsClear(adjustedHitPosition, pointLight.Position, entity);
-
+                Boolean directLight = LineOfSight(adjustedHitPosition, pointLight.Position, entity);
+                
                 // We react accordingly based on the type of material that has been hit
                 if (entity.Material.Type == Material.MaterialType.Diffuse) 
                 {
                     // Diffuse Lighting
                     Vector3 hit2Light = (pointLight.Position - adjustedHitPosition).Normalized();
-
                     if (hitNormal.Dot(hit2Light) > 0 && directLight)
                     {
                         pixelColor += (entity.Material.Color * pointLight.Color) * hitNormal.Dot(hit2Light);
@@ -153,7 +153,7 @@ namespace RayTracer
 
                 RayHit nextHit = nextEntity.Intersect(reflectedRay);
 
-                if (nextHit != null && numReflections < 10 && SpaceIsClear(nextHit.Position, adjustedHitPosition, currEntity))
+                if (nextHit != null && numReflections < 10 && LineOfSight(nextHit.Position, adjustedHitPosition, currEntity))
                 {
                     if (nextEntity.Material.Type == Material.MaterialType.Diffuse) 
                     {
