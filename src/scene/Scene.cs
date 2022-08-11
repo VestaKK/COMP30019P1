@@ -50,69 +50,133 @@ namespace RayTracer
         /// <param name="outputImage">Image to store render output</param>
         public void Render(Image outputImage)
         {
-            Vector3 camera = options.CameraPosition;
+            Vector3 camera = this.options.CameraPosition;
             double gridSizeX = 1.0d/outputImage.Width;
             double gridSizeY = 1.0d/outputImage.Height;
 
             for (int i=0; i < outputImage.Width; i++)
             for (int j=0; j < outputImage.Height; j++)
             {   
-                Ray ray = new Ray(camera, NormalisedWorldCoordinate((i + 0.5) * gridSizeX, (j + 0.5) * gridSizeY, 1.0d, outputImage));
+                Ray ray = new Ray(camera, (ImagePlaneCoordinate((i + 0.5d) * gridSizeX, (j + 0.5d) * gridSizeY, 1.0d, outputImage) - camera).Normalized());
 
                 foreach(var entity in this.entities)
                 {
                     RayHit hit = entity.Intersect(ray);
-                    Color color = new Color(0.0f, 0.0f, 0.0f);
-
-                    if (hit != null)
+                    
+                    // Only shade in pixel if there is a hit detected;
+                    // Condense into a function;
+                    if (hit != null && SpaceIsClear(hit.Position, camera, entity))
                     {
-                        Vector3 hitNormal = hit.Normal.Normalized();
-                        Boolean directLight = true;
-                        foreach (PointLight pointLight in this.lights)
-                        {
-                            Vector3 hit2Light = (pointLight.Position - hit.Position).Normalized();
-                            Ray lightRay = new Ray(pointLight.Position, -hit2Light);
-
-                            foreach(var otherEntity in this.entities) 
-                            {
-                                if (otherEntity.Equals(entity)) continue;
-
-                                RayHit hit2 = otherEntity.Intersect(lightRay); 
-
-                                if (hit2 != null) 
-                                {
-                                    Vector3 cmphit1 = hit.Position - pointLight.Position;
-                                    Vector3 cmphit2 = hit2.Position - pointLight.Position;
-                                    
-                                    if (cmphit1.Dot(cmphit2) < cmphit1.Dot(cmphit1))
-                                    {
-                                        directLight = false;
-                                        break;
-                                    }
-                                }
-                            }
-
-                            if (!directLight) break;
-
-                            if (hitNormal.Dot(hit2Light) > 0 ) 
-                            {
-                                color += (entity.Material.Color * pointLight.Color) * hitNormal.Dot(hit2Light);
-                            }
-                        }
-                        outputImage.SetPixel(i, j, color);
+                        Color pixelColor = CalculateColor(hit, entity);
+                        outputImage.SetPixel(i, j, pixelColor);
+                        break;
                     }
                 }
             }
         }
 
-        private Vector3 NormalisedWorldCoordinate(double x, double y, double z, Image outputImage)
+
+        private Boolean SpaceIsClear(Vector3 origin, Vector3 destination, SceneEntity entity) 
+        {
+            Vector3 orig2Dest = (destination - origin).Normalized();
+            Ray lineOfSight = new Ray(destination, -orig2Dest); 
+            Boolean output = true;
+
+            foreach(var otherEntity in this.entities)
+            {
+                // Only Works for planar and convex objects
+                // TODO: Find a solution to thi later
+                if (otherEntity.Equals(entity)) continue;
+
+                RayHit anotherHit = otherEntity.Intersect(lineOfSight); 
+
+                if (anotherHit != null) 
+                {
+                    Vector3 adjustedOrigin = origin + 0.0000000001 * orig2Dest;
+                    Vector3 cmphit1 = adjustedOrigin - destination;
+                    Vector3 cmphit2 = anotherHit.Position - destination;
+                        
+                    if (cmphit1.Dot(cmphit2) < cmphit1.LengthSq())
+                    {
+                        output = false;
+                        break;
+                    }
+                }
+            }
+
+            return output;
+        }
+
+        private Color CalculateColor(RayHit hit, SceneEntity entity) 
+        {
+            Vector3 hitNormal = hit.Normal.Normalized();
+            Vector3 adjustedHitPosition = hit.Position - 0.0000000001 * hit.Incident;
+            Color pixelColor = new Color(0.0f, 0.0f, 0.0f);
+            // Check if the hit Object is illuminated by any pointlights in the scene
+            foreach (var pointLight in this.lights) 
+            {
+                // Check if the Soace between the entity and the pointlight is clear
+                Boolean directLight = SpaceIsClear(adjustedHitPosition, pointLight.Position, entity);
+
+                // We react accordingly based on the type of material that has been hit
+                if (entity.Material.Type == Material.MaterialType.Diffuse) 
+                {
+                    // Diffuse Lighting
+                    Vector3 hit2Light = (pointLight.Position - adjustedHitPosition).Normalized();
+
+                    if (hitNormal.Dot(hit2Light) > 0 && directLight)
+                    {
+                        pixelColor += (entity.Material.Color * pointLight.Color) * hitNormal.Dot(hit2Light);
+                    }
+                }
+
+                // Reflective
+                if (entity.Material.Type == Material.MaterialType.Reflective || 
+                    entity.Material.Type == Material.MaterialType.Refractive && 
+                    directLight)
+                {   
+                    pixelColor = RecursiveReflections(hit, pixelColor, 0, entity);
+                }   
+            }
+            return pixelColor;
+        }
+
+        private Color RecursiveReflections(RayHit currHit, Color pixelColor, int numReflections, SceneEntity currEntity) 
+        {
+            Vector3 reflectedVector = currHit.Incident - 2 * currHit.Incident.Dot(currHit.Normal.Normalized()) * currHit.Normal.Normalized(); 
+
+            Vector3 adjustedHitPosition = currHit.Position + 0.0000000001 * reflectedVector.Normalized();
+            Ray reflectedRay = new Ray(adjustedHitPosition, reflectedVector.Normalized());
+
+            foreach (var nextEntity in this.entities) 
+            {   
+
+                RayHit nextHit = nextEntity.Intersect(reflectedRay);
+
+                if (nextHit != null && numReflections < 10 && SpaceIsClear(nextHit.Position, adjustedHitPosition, currEntity))
+                {
+                    if (nextEntity.Material.Type == Material.MaterialType.Diffuse) 
+                    {
+                        pixelColor = CalculateColor(nextHit, nextEntity);
+                        break;
+                    }
+                    else if (nextEntity.Material.Type == Material.MaterialType.Reflective || nextEntity.Material.Type == Material.MaterialType.Refractive)
+                    {
+                        pixelColor = RecursiveReflections(nextHit, pixelColor, numReflections + 1, nextEntity);
+                    }
+                }
+            }
+            return pixelColor;
+        }
+
+        private Vector3 ImagePlaneCoordinate(double x, double y, double z, Image outputImage)
         {
             // Defining plane as it appears when embedded in the scene
             double fieldOfView = 60.0d;
             double aspectRatio = outputImage.Width / outputImage.Height;
             double Deg2Rad = Math.PI/180.0d;
 
-            // 1.0d not necessary, but it represent the distance from the camera
+            // 1.0d not necessary, but it represents the distance from the camera
             double fovLength = 2.0d * Math.Tan(fieldOfView*Deg2Rad / 2) * 1.0d;
             double imagePlaneHeight = fovLength;
             double imagePlaneWidth = fovLength * aspectRatio;

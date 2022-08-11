@@ -62,5 +62,4 @@ namespace RayTracer
         /// </summary>
         public Material Material { get { return this.material; } }
     }
-
 }

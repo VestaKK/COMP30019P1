@@ -2,6 +2,7 @@ using System;
 
 namespace RayTracer
 {
+    
     /// <summary>
     /// Class to represent an (infinite) plane in a scene.
     /// </summary>
