@@ -31,18 +31,18 @@ namespace RayTracer
         /// <returns>Hit data (or null if no intersection)</returns>
         public RayHit Intersect(Ray ray)
         {
-            Vector3 D = ray.Direction;
-            Vector3 O = ray.Origin;
+            Vector3 direction = ray.Direction;
+            Vector3 origin = ray.Origin;
             
             // Calculate the intersection between ray and line;
-            if (this.normal.Dot(D) != 0) 
+            if (this.normal.Dot(direction) != 0) 
             {
-                double t = this.normal.Dot(this.center - O) / D.Dot(normal);
-                Vector3 intersect = O + t*D;
+                double t = this.normal.Dot(this.center - origin) / direction.Dot(normal);
+                Vector3 intersect = origin + t*direction;
 
                 // if t > 0, this means the ray has hit the plane in front 
                 // of the camera and is viewable;
-                return t > 0 ? new RayHit(intersect, this.normal, D, this.material) : null;
+                return t > 0 ? new RayHit(intersect, this.normal.Normalized(), direction.Normalized(), this.material) : null;
             }   
             
             return null;

@@ -64,7 +64,7 @@ namespace RayTracer
 
                 // Since our ray can only see p1 at the moment
                 // we only need to return info about p1
-                RayHit hit = new RayHit(p1, p1Normal, ray.Direction, this.material);
+                RayHit hit = new RayHit(p1, p1Normal.Normalized(), ray.Direction.Normalized(), this.material);
                 return hit;
             } 
 
