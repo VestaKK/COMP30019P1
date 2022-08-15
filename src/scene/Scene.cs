@@ -68,20 +68,18 @@ namespace RayTracer
                     // Condense into a function;
                     if (hit != null && LineOfSight(hit.Position, camera))
                     {
-                        Color pixelColor = CalculateColor(hit, entity);
+                        Color pixelColor = CalculateColor(hit);
                         outputImage.SetPixel(i, j, pixelColor);
                         break;
                     }
                 }
             }
         }
-
         private Boolean LineOfSight(Vector3 origin, Vector3 destination) 
         {
             Vector3 adjustedOrigin = origin + BIAS*(destination - origin);
             Vector3 orig2Dest = (destination - adjustedOrigin).Normalized();
             Ray lineOfSight = new Ray(destination, -orig2Dest); 
-            Boolean output = true;
 
             foreach(var entity in this.entities)
             {
@@ -95,39 +93,37 @@ namespace RayTracer
                     if (cmphit1.Dot(cmphit2) < cmphit1.LengthSq() && 
                         cmphit1.Dot(cmphit2) > 0)
                     {
-                        output = false;
-                        break;
+                        return false;
                     }
                 }
             }
-
-            return output;
+            return true;
         }
-
-        private Color CalculateColor(RayHit hit, SceneEntity entity) 
+        
+        private Color CalculateColor(RayHit hit) 
         {
             Color pixelColor = new Color(0.0f, 0.0f, 0.0f);
 
             // This is to prevent shadow acne
-            RayHit alteredHit = new RayHit(hit.Position + (BIAS*hit.Normal), hit.Normal, hit.Incident, entity.Material);
+            RayHit alteredHit = new RayHit(hit.Position + (BIAS*hit.Normal), hit.Normal, hit.Incident, hit.Material);
             
-            switch (entity.Material.Type) 
+            switch (hit.Material.Type) 
             {
                 case Material.MaterialType.Diffuse:
-                    pixelColor = DiffuseLighting(alteredHit, pixelColor, entity);
+                    pixelColor = DiffuseLighting(alteredHit, pixelColor, hit.Material);
                     break;
                 case Material.MaterialType.Reflective:
                     pixelColor = RecursiveReflection(alteredHit, pixelColor, 0);
                     break;
                 case Material.MaterialType.Refractive:
-                    pixelColor = RecursiveRefraction(alteredHit, pixelColor, 0);
+                    pixelColor = RecursiveReflection(alteredHit, pixelColor, 0);
                     break;
                 default:
                     break;
             }
             return pixelColor;
         }
-        private Color DiffuseLighting(RayHit hit, Color pixelColor, SceneEntity entity) 
+        private Color DiffuseLighting(RayHit hit, Color pixelColor, Material material) 
         {
             foreach (var pointLight in this.lights) 
             {
@@ -136,21 +132,19 @@ namespace RayTracer
                 // We react accordingly based on the type of material that has been hit
                 Vector3 hit2Light = (pointLight.Position - hit.Position).Normalized();
                 if (hit.Normal.Dot(hit2Light) > 0 && directLight)
-                    pixelColor += (entity.Material.Color * pointLight.Color) * hit.Normal.Dot(hit2Light);
+                    pixelColor += (material.Color * pointLight.Color) * hit.Normal.Dot(hit2Light);
             }
             return pixelColor;
         }
-
         private Color RecursiveRefraction(RayHit currHit, Color pixelColor, int numReflections) 
         {
             return pixelColor;
         }
-
         private Color RecursiveReflection(RayHit currHit, Color pixelColor, int numReflections) 
         {
-            if (numReflections > 10) return pixelColor;
+            if (numReflections > 15) return pixelColor;
 
-            Vector3 reflectedVector = currHit.Incident - 2 * currHit.Incident.Dot(currHit.Normal.Normalized()) * currHit.Normal.Normalized(); 
+            Vector3 reflectedVector = currHit.Incident - 2 * currHit.Incident.Dot(currHit.Normal) * currHit.Normal; 
             Ray reflectedRay = new Ray(currHit.Position, reflectedVector.Normalized());
             
             foreach (var nextEntity in this.entities) 
@@ -165,7 +159,7 @@ namespace RayTracer
                             pixelColor = RecursiveReflection(nextHit, pixelColor, numReflections + 1);
                             break;
                         default:
-                            pixelColor = CalculateColor(nextHit, nextEntity);
+                            pixelColor = CalculateColor(nextHit);
                             break;
                     }
                 }
