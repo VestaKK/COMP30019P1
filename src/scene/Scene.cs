@@ -49,6 +49,7 @@ namespace RayTracer
         /// break it down into multiple functions as it gets more complex!
         /// </summary>
         /// <param name="outputImage">Image to store render output</param>
+        
         public void Render(Image outputImage)
         {
             Vector3 camera = this.options.CameraPosition;
@@ -75,6 +76,7 @@ namespace RayTracer
                 }
             }
         }
+
         private Boolean LineOfSight(Vector3 origin, Vector3 destination) 
         {
             Vector3 adjustedOrigin = origin + BIAS*(destination - origin);
@@ -123,6 +125,7 @@ namespace RayTracer
             }
             return pixelColor;
         }
+
         private Color DiffuseLighting(RayHit hit, Color pixelColor, Material material) 
         {
             foreach (var pointLight in this.lights) 
@@ -136,10 +139,12 @@ namespace RayTracer
             }
             return pixelColor;
         }
+
         private Color RecursiveRefraction(RayHit currHit, Color pixelColor, int numReflections) 
         {
             return pixelColor;
         }
+
         private Color RecursiveReflection(RayHit currHit, Color pixelColor, int numReflections) 
         {
             if (numReflections > 15) return pixelColor;
