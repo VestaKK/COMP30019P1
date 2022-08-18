@@ -33,7 +33,6 @@ namespace RayTracer
         public RayHit Intersect(Ray ray)
         {
             Vector3 Orig2Cent = this.center - ray.Origin;
-
             // We make a triangle between the origin, the center of the circle
             // and the shortest vector between the center of the circle and 
             // the ray, and solve for the triangle's side lengths.
@@ -62,10 +61,10 @@ namespace RayTracer
                 Vector3 p1Normal = p1 - center;
                 Vector3 p2Normal = p2 - center;
 
-                // Since our ray can only see p1 at the moment
-                // we only need to return info about p1
-                RayHit hit = new RayHit(p1, p1Normal.Normalized(), ray.Direction.Normalized(), this.material);
-                return hit;
+
+                return Orig2Cent.LengthSq() > radiusSq ? 
+                       new RayHit(p1, p1Normal.Normalized(), ray.Direction.Normalized(), this.material) :
+                       new RayHit(p2, p2Normal.Normalized(), ray.Direction.Normalized(), this.material);
             } 
 
             return null;

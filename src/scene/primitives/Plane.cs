@@ -35,7 +35,7 @@ namespace RayTracer
             Vector3 origin = ray.Origin;
             
             // Calculate the intersection between ray and line;
-            if (this.normal.Dot(direction) != 0) 
+            if (this.normal.Dot(direction) < 0) 
             {
                 double t = this.normal.Dot(this.center - origin) / direction.Dot(normal);
                 Vector3 intersect = origin + t*direction;

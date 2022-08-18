@@ -50,7 +50,7 @@ namespace RayTracer
                      triNormal.Dot((v2 - v1).Cross(point - v1)) >= 0 &&
                      triNormal.Dot((v0 - v2).Cross(point - v2)) >= 0 )
                 {
-                    RayHit hit = t > 0 ? new RayHit(point, triNormal.Normalized(), ray.Direction, this.material) : null;
+                    RayHit hit = t > 0 ? new RayHit(point, triNormal.Normalized(), ray.Direction.Normalized(), this.material) : null;
                     return hit;
                 }
             } 

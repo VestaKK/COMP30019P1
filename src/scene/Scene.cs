@@ -105,20 +105,16 @@ namespace RayTracer
         private Color CalculateColor(RayHit hit) 
         {
             Color pixelColor = new Color(0.0f, 0.0f, 0.0f);
-
-            // This is to prevent shadow acne
-            RayHit alteredHit = new RayHit(hit.Position + (BIAS*hit.Normal), hit.Normal, hit.Incident, hit.Material);
-            
             switch (hit.Material.Type) 
             {
                 case Material.MaterialType.Diffuse:
-                    pixelColor = DiffuseLighting(alteredHit, pixelColor, hit.Material);
+                    pixelColor = DiffuseLighting(hit, pixelColor, hit.Material);
                     break;
                 case Material.MaterialType.Reflective:
-                    pixelColor = RecursiveReflection(alteredHit, pixelColor, 0);
+                    pixelColor = RecursiveReflection(hit, pixelColor, 0);
                     break;
                 case Material.MaterialType.Refractive:
-                    pixelColor = RecursiveRefraction(alteredHit, pixelColor, 0);
+                    pixelColor = RecursiveRefraction(hit, pixelColor, 0);
                     break;
                 default:
                     break;
@@ -128,35 +124,81 @@ namespace RayTracer
 
         private Color DiffuseLighting(RayHit hit, Color pixelColor, Material material) 
         {
+            // This is to prevent shadow acne
+            RayHit altHit = new RayHit(hit.Position + (BIAS*hit.Normal), hit.Normal, hit.Incident, hit.Material);
+            
             foreach (var pointLight in this.lights) 
             {
                 // Check if the Soace between the entity and the pointlight is clear
-                Boolean directLight = LineOfSight(hit.Position, pointLight.Position);
+                Boolean directLight = LineOfSight(altHit.Position, pointLight.Position);
                 // We react accordingly based on the type of material that has been hit
-                Vector3 hit2Light = (pointLight.Position - hit.Position).Normalized();
-                if (hit.Normal.Dot(hit2Light) > 0 && directLight)
-                    pixelColor += (material.Color * pointLight.Color) * hit.Normal.Dot(hit2Light);
+                Vector3 hit2Light = (pointLight.Position - altHit.Position).Normalized();
+                if (altHit.Normal.Dot(hit2Light) > 0 && directLight)
+                    pixelColor += (material.Color * pointLight.Color) * altHit.Normal.Dot(hit2Light);
             }
             return pixelColor;
         }
 
-        private Color RecursiveRefraction(RayHit currHit, Color pixelColor, int numReflections) 
-        {
+        private Color RecursiveRefraction(RayHit currHit, Color pixelColor, int numRefractions) 
+        {   
+            if (numRefractions > 5) return pixelColor;
+            RayHit altHit;
+            Vector3 I = currHit.Incident;
+            Vector3 N = currHit.Normal;
+            double etaT = currHit.Material.RefractiveIndex;
+            double etaI = 1.0d;
+
+            if (N.Dot(I) < 0) 
+            {
+                altHit = new RayHit(currHit.Position - BIAS*currHit.Normal, currHit.Normal, currHit.Incident, currHit.Material);
+            }
+            else
+            {
+                altHit = new RayHit(currHit.Position + BIAS*currHit.Normal, currHit.Normal, currHit.Incident, currHit.Material);
+                N = -1*N;
+                double tmp = etaT;
+                etaT = etaI;
+                etaI = tmp;
+            }
+
+            double eta = etaI/etaT;
+            double c1 = N.Dot(I);
+            double c2 = Math.Sqrt(1 - (eta*eta)*(1 - N.Dot(I) * N.Dot(I)));
+            Vector3 T = (eta*I + (eta*c1 - c2)*N).Normalized();
+
+            System.Console.WriteLine("Yeet");
+            System.Console.WriteLine(I.ToString());
+            System.Console.WriteLine(T.ToString());
+
+            Ray transmit = new Ray(altHit.Position, T);
+            foreach(var entity in this.entities) {
+                RayHit nextHit = entity.Intersect(transmit);
+                if (nextHit != null && LineOfSight(nextHit.Position, transmit.Origin))
+                {
+                    Vector3 center = new Vector3(0.25, -0.2, 1.5);
+                    System.Console.WriteLine(nextHit.Material.Type.ToString());
+                    System.Console.WriteLine((altHit.Position - center).Length());
+                    System.Console.WriteLine((nextHit.Position - center).Length());
+                    
+                }
+            }
+            
             return pixelColor;
         }
 
         private Color RecursiveReflection(RayHit currHit, Color pixelColor, int numReflections) 
         {
             if (numReflections > 15) return pixelColor;
+            RayHit altHit = new RayHit(currHit.Position + (BIAS*currHit.Normal), currHit.Normal, currHit.Incident, currHit.Material);
 
-            Vector3 reflectedVector = currHit.Incident - 2 * currHit.Incident.Dot(currHit.Normal) * currHit.Normal; 
-            Ray reflectedRay = new Ray(currHit.Position, reflectedVector.Normalized());
+            Vector3 reflectedVector = altHit.Incident - 2 * altHit.Incident.Dot(altHit.Normal) * altHit.Normal; 
+            Ray reflectedRay = new Ray(altHit.Position, reflectedVector.Normalized());
             
             foreach (var nextEntity in this.entities) 
             {   
                 RayHit nextHit = nextEntity.Intersect(reflectedRay);
                 
-                if (nextHit != null && LineOfSight(nextHit.Position, currHit.Position))
+                if (nextHit != null && LineOfSight(nextHit.Position, altHit.Position))
                 {
                     switch(nextEntity.Material.Type)
                     {
