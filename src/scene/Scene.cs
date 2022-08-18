@@ -119,6 +119,7 @@ namespace RayTracer
                     break;
                 case Material.MaterialType.Refractive:
                     pixelColor = RecursiveRefraction(alteredHit, pixelColor, 0);
+                    pixelColor;
                     break;
                 default:
                     break;
