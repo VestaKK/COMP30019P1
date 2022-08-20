@@ -35,7 +35,7 @@ Tip: To tick, place an x between the square brackes [ ], like so: [x]
 - [x] Stage 2.1 - Diffuse materials
 - [x] Stage 2.2 - Shadow rays
 - [x] Stage 2.3 - Reflective materials
-- [ ] Stage 2.4 - Refractive materials
+- [x] Stage 2.4 - Refractive materials
 - [ ] Stage 2.5 - The Fresnel effect
 - [ ] Stage 2.6 - Anti-aliasing
 
@@ -96,6 +96,6 @@ dotnet run -- -f tests/sample_scene_2.txt -o images/sample_scene_2.png -x 4
 </p>
 
 ## References
-
+https://www.scratchapixel.com/lessons/3d-basic-rendering/introduction-to-shading/reflection-refraction-fresnel#:~:text=Remember%20that%20ray-tracing%20is,reflection%20direction%20in%20this%20example).
 *You must list any references you used - add them here!*
 

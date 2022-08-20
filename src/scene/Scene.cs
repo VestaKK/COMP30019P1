@@ -172,8 +172,8 @@ namespace RayTracer
             }
 
             eta = etaI/etaT;
-            double cosi = N.Dot(I);
-            double k = 1 - eta*eta * (1 - cosi * cosi);
+            double cosi = N.Dot(-1 * I);
+            double k = 1 - eta * eta * (1 - cosi * cosi);
             
             if (k < 0) 
             {
@@ -181,7 +181,7 @@ namespace RayTracer
                 return RecursiveReflection(internalHit, pixelColor, numRefractions + 1);
             }
 
-            Vector3 T = (eta*I + (eta*cosi - Math.Sqrt(k))*N).Normalized();
+            Vector3 T = ((eta*cosi - Math.Sqrt(k))*N + eta*I).Normalized();
 
             Ray transmit = new Ray(altHit.Position, T);
             foreach(var entity in this.entities) {
@@ -199,7 +199,6 @@ namespace RayTracer
                     }
                 }
             }
-            
             return pixelColor;
         }
 
