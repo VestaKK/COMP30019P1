@@ -142,44 +142,61 @@ namespace RayTracer
         private Color RecursiveRefraction(RayHit currHit, Color pixelColor, int numRefractions) 
         {   
             if (numRefractions > 5) return pixelColor;
-            RayHit altHit;
-            Vector3 I = currHit.Incident;
-            Vector3 N = currHit.Normal;
-            double etaT = currHit.Material.RefractiveIndex;
-            double etaI = 1.0d;
 
-            if (N.Dot(I) < 0) 
+            RayHit altHit;
+            Vector3 I;
+            Vector3 N;
+            double etaT;
+            double etaI;
+            double eta;
+
+            if (currHit.Normal.Dot(currHit.Incident) < 0) 
             {
                 altHit = new RayHit(currHit.Position - BIAS*currHit.Normal, currHit.Normal, currHit.Incident, currHit.Material);
+
+                I = currHit.Incident;
+                N = currHit.Normal;
+
+                etaT = currHit.Material.RefractiveIndex;
+                etaI = 1.0d;
             }
             else
             {
                 altHit = new RayHit(currHit.Position + BIAS*currHit.Normal, currHit.Normal, currHit.Incident, currHit.Material);
-                N = -1*N;
-                double tmp = etaT;
-                etaT = etaI;
-                etaI = tmp;
+
+                I = currHit.Incident;
+                N = -1 * currHit.Normal;
+
+                etaT = 1.0d;
+                etaI = currHit.Material.RefractiveIndex;
             }
 
-            double eta = etaI/etaT;
-            double c1 = N.Dot(I);
-            double c2 = Math.Sqrt(1 - (eta*eta)*(1 - N.Dot(I) * N.Dot(I)));
-            Vector3 T = (eta*I + (eta*c1 - c2)*N).Normalized();
+            eta = etaI/etaT;
+            double cosi = N.Dot(I);
+            double k = 1 - eta*eta * (1 - cosi * cosi);
+            
+            if (k < 0) 
+            {
+                RayHit internalHit = new RayHit(currHit.Position, N, currHit.Incident, currHit.Material);
+                return RecursiveReflection(internalHit, pixelColor, numRefractions + 1);
+            }
 
-            System.Console.WriteLine("Yeet");
-            System.Console.WriteLine(I.ToString());
-            System.Console.WriteLine(T.ToString());
+            Vector3 T = (eta*I + (eta*cosi - Math.Sqrt(k))*N).Normalized();
 
             Ray transmit = new Ray(altHit.Position, T);
             foreach(var entity in this.entities) {
                 RayHit nextHit = entity.Intersect(transmit);
                 if (nextHit != null && LineOfSight(nextHit.Position, transmit.Origin))
                 {
-                    Vector3 center = new Vector3(0.25, -0.2, 1.5);
-                    System.Console.WriteLine(nextHit.Material.Type.ToString());
-                    System.Console.WriteLine((altHit.Position - center).Length());
-                    System.Console.WriteLine((nextHit.Position - center).Length());
-                    
+                    switch(nextHit.Material.Type)
+                    {
+                        case Material.MaterialType.Refractive:
+                            pixelColor = RecursiveRefraction(nextHit, pixelColor, numRefractions);
+                            break;
+                        default:
+                            pixelColor = CalculateColor(nextHit);
+                            break;
+                    }
                 }
             }
             
@@ -194,13 +211,13 @@ namespace RayTracer
             Vector3 reflectedVector = altHit.Incident - 2 * altHit.Incident.Dot(altHit.Normal) * altHit.Normal; 
             Ray reflectedRay = new Ray(altHit.Position, reflectedVector.Normalized());
             
-            foreach (var nextEntity in this.entities) 
+            foreach (var entity in this.entities) 
             {   
-                RayHit nextHit = nextEntity.Intersect(reflectedRay);
+                RayHit nextHit = entity.Intersect(reflectedRay);
                 
                 if (nextHit != null && LineOfSight(nextHit.Position, altHit.Position))
                 {
-                    switch(nextEntity.Material.Type)
+                    switch(nextHit.Material.Type)
                     {
                         case Material.MaterialType.Reflective:
                             pixelColor = RecursiveReflection(nextHit, pixelColor, numReflections + 1);
