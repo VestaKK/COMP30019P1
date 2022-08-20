@@ -84,6 +84,12 @@ namespace RayTracer
             return new Vector3(cx, cy, cz);
         }
 
+        /// <returns>Same vector pointing in the opposite direction</returns>
+        public Vector3 Reversed()
+        {
+            return -1 * this;
+        }
+
         /// <summary>
         /// Sum two vectors together (using + operator).
         /// </summary>
