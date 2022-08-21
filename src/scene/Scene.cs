@@ -171,10 +171,8 @@ namespace RayTracer
             if (currHit.Normal.Dot(currHit.Incident) < 0) 
             {
                 altHit = new RayHit(currHit.Position - BIAS*currHit.Normal, currHit.Normal, currHit.Incident, currHit.Material);
-
                 I = currHit.Incident;
                 N = currHit.Normal;
-
                 etaT = currHit.Material.RefractiveIndex;
                 etaI = 1.0d;
             }
@@ -185,10 +183,8 @@ namespace RayTracer
             else
             {
                 altHit = new RayHit(currHit.Position + BIAS*currHit.Normal, currHit.Normal, currHit.Incident, currHit.Material);
-
                 I = currHit.Incident;
                 N = currHit.Normal.Reversed();
-
                 etaT = 1.0d;
                 etaI = currHit.Material.RefractiveIndex;
             }
@@ -197,6 +193,7 @@ namespace RayTracer
             eta = etaI/etaT;
             double cosI = N.Dot(I.Reversed());           
             double k = 1 - eta * eta * (1 - cosI * cosI);
+
             // if k < 0, our refracted angle is larger than the critical angle
             // Ray is fully reflected. This should only happen when the reflection is internal
             if (k < 0) 
@@ -205,12 +202,13 @@ namespace RayTracer
                 return RecursiveReflection(internalHit, depth + 1);
             }
 
+            // We now create the refracted ray
             Vector3 T = ((eta*cosI - Math.Sqrt(k))*N + eta*I).Normalized();
-            Ray transmit = new Ray(altHit.Position, T);
+            Ray transmitted = new Ray(altHit.Position, T);
 
             foreach(var entity in this.entities) {
-                RayHit nextHit = entity.Intersect(transmit);
-                if (nextHit != null && LineOfSight(nextHit.Position, transmit.Origin))
+                RayHit nextHit = entity.Intersect(transmitted);
+                if (nextHit != null && LineOfSight(nextHit.Position, transmitted.Origin))
                 {
                     switch(nextHit.Material.Type)
                     {
@@ -223,6 +221,7 @@ namespace RayTracer
                     }
                 }
             }
+
             double FR = Fresnel(etaI, etaT, cosI);
             return refractedColor*(1 - FR) + RecursiveReflection(currHit, depth + 1)*FR;
         }
