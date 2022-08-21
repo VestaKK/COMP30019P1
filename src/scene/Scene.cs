@@ -9,8 +9,8 @@ namespace RayTracer
     /// </summary>
     public class Scene
     {
-        private readonly double BIAS = 1e-4;
-        private readonly double BOUNCE_LIMIT = 15;
+        private const double BIAS = 1e-4;
+        private const double maxDepth = 20;
         private SceneOptions options;
         private ISet<SceneEntity> entities;
         private ISet<PointLight> lights;
@@ -70,7 +70,7 @@ namespace RayTracer
                     // Condense into a function;
                     if (hit != null && LineOfSight(hit.Position, camera))
                     {
-                        Color pixelColor = CalculateColor(hit);
+                        Color pixelColor = CalculateColor(hit, 0);
                         outputImage.SetPixel(i, j, pixelColor);
                         break;
                     }
@@ -103,24 +103,19 @@ namespace RayTracer
             return true;
         }
         
-        private Color CalculateColor(RayHit hit) 
+        private Color CalculateColor(RayHit hit, int depth) 
         {
-            Color pixelColor = new Color(0.0f, 0.0f, 0.0f);
             switch (hit.Material.Type) 
             {
                 case Material.MaterialType.Diffuse:
-                    pixelColor = DiffuseLighting(hit);
-                    break;
+                    return DiffuseLighting(hit);
                 case Material.MaterialType.Reflective:
-                    pixelColor = RecursiveReflection(hit, 0);
-                    break;
+                    return RecursiveReflection(hit, depth);
                 case Material.MaterialType.Refractive:
-                    pixelColor = RecursiveRefraction(hit, 0);
-                    break;
+                    return RecursiveRefraction(hit, depth);
                 default:
-                    break;
+                    return new Color(0.0f, 0.0f, 0.0f);
             }
-            return pixelColor;
         }
 
         private Color DiffuseLighting(RayHit hit) 
@@ -141,19 +136,35 @@ namespace RayTracer
             return surfaceColor;
         }
 
-        private Color RecursiveRefraction(RayHit currHit, int numRefractions) 
+        private double Fresnel(double etaI, double etaT, double cosI) 
+        {
+            double eta = etaI/etaT;
+            double sinI = Math.Sqrt(1 - cosI * cosI);
+            double sinT = eta * sinI;
+            double cosT = Math.Sqrt(1 - sinT * sinT);
+
+            if (sinT >= 1) return 1.0d;
+
+            double FRPll = ((etaI * cosI) - (etaT * cosT))/((etaI * cosI) + (etaT * cosT));
+            double FRPpd = ((etaT * cosI) - (etaI * cosT))/((etaT * cosI) + (etaI * cosT));
+
+            double FR = ((FRPll * FRPll) + (FRPpd * FRPpd))/2;
+            return FR;
+        }
+
+        private Color RecursiveRefraction(RayHit currHit, int depth) 
         {   
             
-            if (numRefractions > BOUNCE_LIMIT) return new Color(0.0f, 0.0f, 0.0f);
+            if (depth > maxDepth) return new Color(0.0f, 0.0f, 0.0f);
 
-            Color surfaceColor = new Color(0.0f, 0.0f, 0.0f);
+            Color refractedColor = new Color(0.0f, 0.0f, 0.0f);
+            Color reflectedColor = new Color(0.0f, 0.0f, 0.0f);
             RayHit altHit;
             Vector3 I;
             Vector3 N;
             double etaT;
             double etaI;
             double eta;
-
 
             // if this is true it implies that we are hitting the object from the outside
             // We adjust the hit point below the surfave of the object to prevent self intersection
@@ -167,6 +178,7 @@ namespace RayTracer
                 etaT = currHit.Material.RefractiveIndex;
                 etaI = 1.0d;
             }
+
             // Otherwise we are hitting the object from inside the object
             // We adjust the hit point above the surface to prevent self intersection
             // Normal has to be flipped for the calculations to work out
@@ -183,18 +195,17 @@ namespace RayTracer
 
             // eta is essentially aspect ratio but for refracted angles
             eta = etaI/etaT;
-            double cosi = N.Dot(I.Reversed());
-            double k = 1 - eta * eta * (1 - cosi * cosi);
-            
-            // if k < 0, our refracted angle is larger than the critical angle hit the critical angle
-            // Ray is fully reflected
+            double cosI = N.Dot(I.Reversed());           
+            double k = 1 - eta * eta * (1 - cosI * cosI);
+            // if k < 0, our refracted angle is larger than the critical angle
+            // Ray is fully reflected. This should only happen when the reflection is internal
             if (k < 0) 
             {
                 RayHit internalHit = new RayHit(currHit.Position, N, currHit.Incident, currHit.Material);
-                return RecursiveReflection(internalHit, numRefractions + 1);
+                return RecursiveReflection(internalHit, depth + 1);
             }
 
-            Vector3 T = ((eta*cosi - Math.Sqrt(k))*N + eta*I).Normalized();
+            Vector3 T = ((eta*cosI - Math.Sqrt(k))*N + eta*I).Normalized();
             Ray transmit = new Ray(altHit.Position, T);
 
             foreach(var entity in this.entities) {
@@ -204,20 +215,22 @@ namespace RayTracer
                     switch(nextHit.Material.Type)
                     {
                         case Material.MaterialType.Refractive:
-                            surfaceColor = RecursiveRefraction(nextHit, numRefractions);
+                            refractedColor = RecursiveRefraction(nextHit, depth + 1);
                             break;
                         default:
-                            surfaceColor = CalculateColor(nextHit);
+                            refractedColor = CalculateColor(nextHit, depth + 1);
                             break;
                     }
                 }
             }
-            return surfaceColor;
+            double FR = Fresnel(etaI, etaT, cosI);
+            return refractedColor*(1 - FR) + RecursiveReflection(currHit, depth + 1)*FR;
         }
 
-        private Color RecursiveReflection(RayHit currHit,  int numReflections) 
+        private Color RecursiveReflection(RayHit currHit,  int depth) 
         {
-            if (numReflections > BOUNCE_LIMIT) return new Color(0.0f, 0.0f, 0.0f);
+            if (depth > maxDepth) return new Color(0.0f, 0.0f, 0.0f);
+
             Color surfaceColor = new Color(0.0f, 0.0f, 0.0f);
             RayHit altHit = new RayHit(currHit.Position + (BIAS*currHit.Normal), currHit.Normal, currHit.Incident, currHit.Material);
 
@@ -233,10 +246,10 @@ namespace RayTracer
                     switch(nextHit.Material.Type)
                     {
                         case Material.MaterialType.Reflective:
-                            surfaceColor = RecursiveReflection(nextHit, numReflections + 1);
+                            surfaceColor = RecursiveReflection(nextHit, depth + 1);
                             break;
                         default:
-                            surfaceColor = CalculateColor(nextHit);
+                            surfaceColor = CalculateColor(nextHit, depth + 1);
                             break;
                     }
                 }

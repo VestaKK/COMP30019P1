@@ -36,7 +36,7 @@ Tip: To tick, place an x between the square brackes [ ], like so: [x]
 - [x] Stage 2.2 - Shadow rays
 - [x] Stage 2.3 - Reflective materials
 - [x] Stage 2.4 - Refractive materials
-- [ ] Stage 2.5 - The Fresnel effect
+- [x] Stage 2.5 - The Fresnel effect
 - [ ] Stage 2.6 - Anti-aliasing
 
 ##### Stage 3
