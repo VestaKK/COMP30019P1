@@ -66,7 +66,6 @@ namespace RayTracer
                        new RayHit(p1, p1Normal.Normalized(), ray.Direction.Normalized(), this.material) :
                        new RayHit(p2, p2Normal.Normalized(), ray.Direction.Normalized(), this.material);
             } 
-
             return null;
         }
 

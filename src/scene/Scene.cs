@@ -223,7 +223,7 @@ namespace RayTracer
             }
 
             double FR = Fresnel(etaI, etaT, cosI);
-            return refractedColor*(1 - FR) + RecursiveReflection(currHit, depth + 1)*FR;
+            return refractedColor * (1 - FR) + RecursiveReflection(currHit, depth + 1)*FR;
         }
 
         private Color RecursiveReflection(RayHit currHit,  int depth) 
