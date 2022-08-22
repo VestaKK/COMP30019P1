@@ -56,24 +56,56 @@ namespace RayTracer
             Vector3 camera = this.options.CameraPosition;
             double gridSizeX = 1.0d/outputImage.Width;
             double gridSizeY = 1.0d/outputImage.Height;
+            double AAMultiplier = this.options.AAMultiplier;
+            
 
-            for (int i=0; i < outputImage.Width; i++)
-            for (int j=0; j < outputImage.Height; j++)
-            {   
-                Ray ray = new Ray(camera, (ImagePlaneCoordinate((i + 0.5d) * gridSizeX, (j + 0.5d) * gridSizeY, outputImage) - camera).Normalized());
+            if (AAMultiplier == 1.0d) 
+            {
+                for (int i=0; i < outputImage.Width; i++)
+                for (int j=0; j < outputImage.Height; j++)
+                {   
+                    Ray ray = new Ray(camera, (ImagePlaneCoordinate((i + 0.5d) * gridSizeX, (j + 0.5d) * gridSizeY, outputImage) - camera).Normalized());
 
-                foreach(var entity in this.entities)
-                {
-                    RayHit hit = entity.Intersect(ray);
-                    
-                    // Only shade in pixel if there is a hit detected;
-                    // Condense into a function;
-                    if (hit != null && LineOfSight(hit.Position, camera))
+                    foreach(var entity in this.entities)
                     {
-                        Color pixelColor = CalculateColor(hit, 0);
-                        outputImage.SetPixel(i, j, pixelColor);
-                        break;
+                        RayHit hit = entity.Intersect(ray);
+                        
+                        // Only shade in pixel if there is a hit detected;
+                        // Condense into a function;
+                        if (hit != null && LineOfSight(hit.Position, camera))
+                        {
+                            Color pixelColor = CalculateColor(hit, 0);
+                            outputImage.SetPixel(i, j, pixelColor);
+                            break;
+                        }
                     }
+                }
+            }
+            else 
+            {
+                // calculation for the dimensions of a subpixel
+                double pixelPartition = 1.0d/AAMultiplier;
+
+                for (int i=0; i < outputImage.Width; i++)
+                for (int j=0; j < outputImage.Height; j++) 
+                {
+                    Color outputColor = new Color(0.0f, 0.0f, 0.0f);
+
+                    for (int px=0; px < this.options.AAMultiplier; px++)
+                    for (int py=0; py < this.options.AAMultiplier; py++)
+                    {
+                        Ray ray = new Ray(camera, (ImagePlaneCoordinate((i + (px + 0.5) * pixelPartition) * gridSizeX, (j + (py + 0.5) * pixelPartition) * gridSizeY, outputImage) - camera).Normalized());
+                        foreach(var entity in this.entities)
+                        {
+                            RayHit hit = entity.Intersect(ray);
+                            if (hit != null && LineOfSight(hit.Position, camera))
+                            {
+                                outputColor += CalculateColor(hit, 0);
+                                break;
+                            }
+                        }
+                    }
+                    outputImage.SetPixel(i, j, outputColor/(AAMultiplier * AAMultiplier));
                 }
             }
         }
@@ -201,7 +233,7 @@ namespace RayTracer
                 RayHit internalHit = new RayHit(currHit.Position, N, currHit.Incident, currHit.Material);
                 return RecursiveReflection(internalHit, depth + 1);
             }
-
+            
             // We now create the refracted ray
             Vector3 T = ((eta*cosI - Math.Sqrt(k))*N + eta*I).Normalized();
             Ray transmitted = new Ray(altHit.Position, T);
