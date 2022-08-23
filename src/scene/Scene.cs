@@ -10,7 +10,7 @@ namespace RayTracer
     public class Scene
     {
         private const double BIAS = 1e-4;
-        private const double maxDepth = 20;
+        private const double maxDepth = 5;
         private SceneOptions options;
         private ISet<SceneEntity> entities;
         private ISet<PointLight> lights;
@@ -94,7 +94,9 @@ namespace RayTracer
                     for (int px=0; px < this.options.AAMultiplier; px++)
                     for (int py=0; py < this.options.AAMultiplier; py++)
                     {
-                        Ray ray = new Ray(camera, (ImagePlaneCoordinate((i + (px + 0.5) * pixelPartition) * gridSizeX, (j + (py + 0.5) * pixelPartition) * gridSizeY, outputImage) - camera).Normalized());
+                        Ray ray = new Ray(camera, (ImagePlaneCoordinate((i + (px + 0.5) * pixelPartition) * gridSizeX, 
+                                                                        (j + (py + 0.5) * pixelPartition) * gridSizeY, outputImage) - camera).Normalized());
+
                         foreach(var entity in this.entities)
                         {
                             RayHit hit = entity.Intersect(ray);
@@ -255,10 +257,12 @@ namespace RayTracer
             }
 
             double FR = Fresnel(etaI, etaT, cosI);
-            return refractedColor * (1 - FR) + RecursiveReflection(currHit, depth + 1)*FR;
+            reflectedColor = RecursiveReflection(currHit, depth + 1);
+
+            return (1 - FR)*refractedColor + FR*reflectedColor;
         }
 
-        private Color RecursiveReflection(RayHit currHit,  int depth) 
+        private Color RecursiveReflection(RayHit currHit, int depth) 
         {
             if (depth > maxDepth) return new Color(0.0f, 0.0f, 0.0f);
 

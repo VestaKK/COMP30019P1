@@ -59,6 +59,17 @@ namespace RayTracer
         }
 
         /// <summary>
+        /// Multiply each color component by a single scalar value.
+        /// </summary>
+        /// <param name="a">Color structure</param>
+        /// <param name="b">Scalar multiple</param>
+        /// <returns>Multiplied color structure</returns>
+        public static Color operator *(double b, Color a)
+        {
+            return new Color(a.r * b, a.g * b, a.b * b);
+        }
+
+        /// <summary>
         /// Multiply two colors together component-wise.
         /// </summary>
         /// <param name="a">First color structure</param>
