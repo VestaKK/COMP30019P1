@@ -25,6 +25,7 @@ namespace RayTracer
             this.normals  = new List<Vector3>();
             this.vertices = new List<Vector3>();
             this.faces = new List<Triangle>();
+           
             // Here's some code to get you started reading the file...
             string[] lines = File.ReadAllLines(objFilePath);
             for (int i = 0; i < lines.Length; i++)
@@ -34,29 +35,32 @@ namespace RayTracer
                 {
                     case "v":
                         Vector3 vertex = new Vector3(double.Parse(args[1]), double.Parse(args[2]), double.Parse(args[3]));
-                        vertices.Add(scale * (vertex + offset));
+                        vertices.Add((scale * vertex) + offset);
                         break;
                     case "vn":
                         Vector3 normal = new Vector3(double.Parse(args[1]), double.Parse(args[2]), double.Parse(args[3]));
-                        vertices.Add(normal);
+                        normals.Add(normal);
                         break;
                     case "f":
-
                         string[] indices = args[1..^0];
                         Vector3[] triVerts = new Vector3[3];
-
+                        
                         for(int j=0; j<3; j++) 
                         {
                             int vertIndex = int.Parse(indices[j].Split("//")[0]);
                             int normIndex = int.Parse(indices[j].Split("//")[1]);
-                            triVerts[j] = this.vertices[j];
+                            triVerts[j] = this.vertices[vertIndex - 1];
                         }
-
+                        
                         this.faces.Add(new Triangle(triVerts[0], 
                                                     triVerts[1], 
                                                     triVerts[2], 
                                                     this.material));
+                        
                         break;
+                    default:
+                        break;
+                    
                 }
             }
         }
@@ -69,27 +73,30 @@ namespace RayTracer
         /// <returns>Ray hit data, or null if no hit</returns>
         public RayHit Intersect(Ray ray)
         {
-            RayHit closest = null;
+            double closest2origin= -1.0d;
+            RayHit closest = new RayHit(new Vector3(0.0f, 0.0f, 0.0f), new Vector3(0.0f, 0.0f, 0.0f), new Vector3(0.0f, 0.0f, 0.0f), this.Material);
+
             foreach(Triangle face in this.faces) 
             {
                 RayHit faceHit = face.Intersect(ray);
 
-                if (faceHit != null || !(closest != null)) 
+                if (faceHit != null && closest2origin == -1.0d) 
                 {
                     closest = faceHit;
+                    closest2origin = (faceHit.Position + BIAS*faceHit.Normal - ray.Origin).LengthSq();
                     continue;
                 }
-                else
+                else if (faceHit != null && closest2origin != -1.0d)
                 {
-                    Vector3 cmphit1 = faceHit.Position + BIAS*faceHit.Normal - ray.Origin;
-                    Vector3 cmphit2 = closest.Position + BIAS*closest.Normal - ray.Origin;
-                    if (cmphit2.Dot(cmphit1) < cmphit1.LengthSq())
+                    double hit2origin = (faceHit.Position + BIAS*faceHit.Normal - ray.Origin).LengthSq();
+
+                    if (closest2origin > hit2origin)
                     {
                         closest = faceHit;
+                        closest2origin = hit2origin;
                     }
                 }
             }
-            // Write your code here...
             return closest;
         }
 

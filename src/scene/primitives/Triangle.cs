@@ -39,7 +39,7 @@ namespace RayTracer
             Vector3 v2 = this.v2;
             Vector3 triNormal = this.normal;
             
-            if (triNormal.Dot(ray.Direction) != 0) 
+            if (triNormal.Dot(ray.Direction) < 0) 
             {
                 // Literally copying from the slides lmao
                 double t = triNormal.Dot(v0 - ray.Origin) / ray.Direction.Dot(triNormal);

@@ -65,7 +65,7 @@ namespace RayTracer
                 for (int i=0; i < outputImage.Width; i++)
                 for (int j=0; j < outputImage.Height; j++)
                 {   
-                    // System.Console.WriteLine(i.ToString() + " " + j.ToString());
+                    System.Console.WriteLine(i.ToString() + " " + j.ToString());
                     Ray ray = new Ray(camera, (ImagePlaneCoordinate((i + 0.5d) * gridSizeX, (j + 0.5d) * gridSizeY, outputImage) - camera).Normalized());
 
                     foreach(var entity in this.entities)
