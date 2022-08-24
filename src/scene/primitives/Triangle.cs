@@ -8,6 +8,7 @@ namespace RayTracer
     public class Triangle : SceneEntity
     {
         private Vector3 v0, v1, v2;
+        private Vector3 normal;
         private Material material;
 
         /// <summary>
@@ -22,6 +23,7 @@ namespace RayTracer
             this.v0 = v0;
             this.v1 = v1;
             this.v2 = v2;
+            this.normal = (v1 - v0).Cross(v2 - v0).Normalized();
             this.material = material;
         }
 
@@ -35,9 +37,8 @@ namespace RayTracer
             Vector3 v0 = this.v0;
             Vector3 v1 = this.v1;
             Vector3 v2 = this.v2;
+            Vector3 triNormal = this.normal;
             
-            Vector3 triNormal = (v1 - v0).Cross(v2 - v0);
-
             if (triNormal.Dot(ray.Direction) != 0) 
             {
                 // Literally copying from the slides lmao
@@ -50,7 +51,7 @@ namespace RayTracer
                      triNormal.Dot((v2 - v1).Cross(point - v1)) >= 0 &&
                      triNormal.Dot((v0 - v2).Cross(point - v2)) >= 0 )
                 {
-                    RayHit hit = t > 0 ? new RayHit(point, triNormal.Normalized(), ray.Direction.Normalized(), this.material) : null;
+                    RayHit hit = t > 0 ? new RayHit(point, triNormal, ray.Direction, this.material) : null;
                     return hit;
                 }
             } 

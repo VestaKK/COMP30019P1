@@ -1,5 +1,5 @@
 using System.IO;
-
+using System.Collections.Generic;
 namespace RayTracer
 {
     /// <summary>
@@ -7,8 +7,11 @@ namespace RayTracer
     /// </summary>
     public class ObjModel : SceneEntity
     {
+        private const double BIAS = 1e-4;
         private Material material;
-
+        List<Vector3> vertices;
+        List<Vector3> normals;
+        List<Triangle> faces;
         /// <summary>
         /// Construct a new OBJ model.
         /// </summary>
@@ -19,12 +22,42 @@ namespace RayTracer
         public ObjModel(string objFilePath, Vector3 offset, double scale, Material material)
         {
             this.material = material;
-
+            this.normals  = new List<Vector3>();
+            this.vertices = new List<Vector3>();
+            this.faces = new List<Triangle>();
             // Here's some code to get you started reading the file...
             string[] lines = File.ReadAllLines(objFilePath);
             for (int i = 0; i < lines.Length; i++)
             {
-                // The current line is lines[i]
+                string[] args = lines[i].Split();
+                switch(args[0])
+                {
+                    case "v":
+                        Vector3 vertex = new Vector3(double.Parse(args[1]), double.Parse(args[2]), double.Parse(args[3]));
+                        vertices.Add(scale * (vertex + offset));
+                        break;
+                    case "vn":
+                        Vector3 normal = new Vector3(double.Parse(args[1]), double.Parse(args[2]), double.Parse(args[3]));
+                        vertices.Add(normal);
+                        break;
+                    case "f":
+
+                        string[] indices = args[1..^0];
+                        Vector3[] triVerts = new Vector3[3];
+
+                        for(int j=0; j<3; j++) 
+                        {
+                            int vertIndex = int.Parse(indices[j].Split("//")[0]);
+                            int normIndex = int.Parse(indices[j].Split("//")[1]);
+                            triVerts[j] = this.vertices[j];
+                        }
+
+                        this.faces.Add(new Triangle(triVerts[0], 
+                                                    triVerts[1], 
+                                                    triVerts[2], 
+                                                    this.material));
+                        break;
+                }
             }
         }
 
@@ -36,8 +69,28 @@ namespace RayTracer
         /// <returns>Ray hit data, or null if no hit</returns>
         public RayHit Intersect(Ray ray)
         {
+            RayHit closest = null;
+            foreach(Triangle face in this.faces) 
+            {
+                RayHit faceHit = face.Intersect(ray);
+
+                if (faceHit != null || !(closest != null)) 
+                {
+                    closest = faceHit;
+                    continue;
+                }
+                else
+                {
+                    Vector3 cmphit1 = faceHit.Position + BIAS*faceHit.Normal - ray.Origin;
+                    Vector3 cmphit2 = closest.Position + BIAS*closest.Normal - ray.Origin;
+                    if (cmphit2.Dot(cmphit1) < cmphit1.LengthSq())
+                    {
+                        closest = faceHit;
+                    }
+                }
+            }
             // Write your code here...
-            return null;
+            return closest;
         }
 
         /// <summary>
