@@ -43,7 +43,7 @@ Tip: To tick, place an x between the square brackes [ ], like so: [x]
 
 - [ ] Option A - Emissive materials (+6)
 - [ ] Option B - Ambient lighting/occlusion (+6)
-- [ ] Option C - OBJ models (+6)
+- [x] Option C - OBJ models (+6)
 - [ ] Option D - Glossy materials (+3)
 - [ ] Option E - Custom camera orientation (+3)
 - [ ] Option F - Beer's law (+3)

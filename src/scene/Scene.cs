@@ -59,28 +59,17 @@ namespace RayTracer
             double gridSizeY = 1.0d/outputImage.Height;
             double AAMultiplier = this.options.AAMultiplier;
             
-
             if (AAMultiplier == 1.0d) 
             {
                 for (int i=0; i < outputImage.Width; i++)
                 for (int j=0; j < outputImage.Height; j++)
                 {   
-                    System.Console.WriteLine(i.ToString() + " " + j.ToString());
                     Ray ray = new Ray(camera, (ImagePlaneCoordinate((i + 0.5d) * gridSizeX, (j + 0.5d) * gridSizeY, outputImage) - camera).Normalized());
 
-                    foreach(var entity in this.entities)
-                    {
-                        RayHit hit = entity.Intersect(ray);
-                        
-                        // Only shade in pixel if there is a hit detected;
-                        // Condense into a function;
-                        if (hit != null && LineOfSight(hit.Position, camera))
-                        {
-                            Color pixelColor = CalculateColor(hit, 0);
-                            outputImage.SetPixel(i, j, pixelColor);
-                            break;
-                        }
-                    }
+                    RayHit closest = ClosestHit(ray);
+
+                    Color pixelColor = closest == null ?  new Color(0.0f, 0.0f, 0.0f) : CalculateColor(closest, 0);
+                    outputImage.SetPixel(i, j, pixelColor);
                 }
             }
             else 
@@ -96,22 +85,44 @@ namespace RayTracer
                     for (int px=0; px < this.options.AAMultiplier; px++)
                     for (int py=0; py < this.options.AAMultiplier; py++)
                     {
+
                         Ray ray = new Ray(camera, (ImagePlaneCoordinate((i + (px + 0.5) * pixelPartition) * gridSizeX, 
                                                                         (j + (py + 0.5) * pixelPartition) * gridSizeY, outputImage) - camera).Normalized());
+                        RayHit closest = ClosestHit(ray);
 
-                        foreach(var entity in this.entities)
-                        {
-                            RayHit hit = entity.Intersect(ray);
-                            if (hit != null && LineOfSight(hit.Position, camera))
-                            {
-                                outputColor += CalculateColor(hit, 0);
-                                break;
-                            }
-                        }
+                        outputColor += closest == null ?  new Color(0.0f, 0.0f, 0.0f) : CalculateColor(closest, 0);
                     }
+
                     outputImage.SetPixel(i, j, outputColor/(AAMultiplier * AAMultiplier));
                 }
             }
+        }
+
+        private RayHit ClosestHit(Ray ray)
+        {
+            double closest2origin= -1.0d;
+            RayHit closest = null;
+
+            foreach(var entity in this.entities)
+            {
+                RayHit hit = entity.Intersect(ray);
+                if (hit != null && closest2origin == -1.0d) 
+                {
+                    closest = hit;
+                    closest2origin = (hit.Position - BIAS*(hit.Position - ray.Origin) - ray.Origin).LengthSq();
+                    continue;
+                } 
+                else if (hit != null && closest2origin != -1.0d)
+                {
+                    double hit2origin = (hit.Position - BIAS*(hit.Position - ray.Origin) - ray.Origin).LengthSq();
+                    if (closest2origin > hit2origin)
+                    {
+                        closest = hit;
+                        closest2origin = hit2origin;
+                    }
+                }
+            }
+            return closest;
         }
 
         private Boolean LineOfSight(Vector3 origin, Vector3 destination) 
@@ -169,6 +180,7 @@ namespace RayTracer
                 if (altHit.Normal.Dot(hit2Light) > 0 && directLight)
                     surfaceColor += (hit.Material.Color * pointLight.Color) * altHit.Normal.Dot(hit2Light);
             }
+
             return surfaceColor;
         }
 

@@ -8,8 +8,11 @@ namespace RayTracer
     public class Triangle : SceneEntity
     {
         private Vector3 v0, v1, v2;
-        private Vector3 normal;
+        private Vector3 n0, n1, n2;
+        private Vector3 faceNormal;
         private Material material;
+
+        private Boolean hasVertexNormals;
 
         /// <summary>
         /// Construct a triangle object given three vertices.
@@ -23,7 +26,32 @@ namespace RayTracer
             this.v0 = v0;
             this.v1 = v1;
             this.v2 = v2;
-            this.normal = (v1 - v0).Cross(v2 - v0).Normalized();
+
+            this.faceNormal = (v1 - v0).Cross(v2 - v0);
+
+            this.n0 = this.faceNormal;
+            this.n1 = this.faceNormal;
+            this.n2 = this.faceNormal;
+
+            this.hasVertexNormals = false;
+            this.material = material;
+        }
+
+        public Triangle(Vector3 v0, Vector3 v1, Vector3 v2, 
+                        Vector3 n0, Vector3 n1, Vector3 n2, 
+                        Material material)
+        {
+            this.v0 = v0;
+            this.v1 = v1;
+            this.v2 = v2;
+
+            this.n0 = n0;
+            this.n1 = n1;
+            this.n2 = n2;
+
+            this.faceNormal = (v1 - v0).Cross(v2 - v0);
+
+            this.hasVertexNormals = true;
             this.material = material;
         }
 
@@ -37,27 +65,39 @@ namespace RayTracer
             Vector3 v0 = this.v0;
             Vector3 v1 = this.v1;
             Vector3 v2 = this.v2;
-            Vector3 triNormal = this.normal;
+            Vector3 faceNormal = this.faceNormal;
             
-            if (triNormal.Dot(ray.Direction) < 0) 
+            if (faceNormal.Dot(ray.Direction) < 0) 
             {
                 // Literally copying from the slides lmao
-                double t = triNormal.Dot(v0 - ray.Origin) / ray.Direction.Dot(triNormal);
+                // Look I don't make the rules fair game is fair game
+                double t = faceNormal.Dot(v0 - ray.Origin) / ray.Direction.Dot(faceNormal);
                 Vector3 point = ray.Origin + t * ray.Direction;
 
                 // Finding if plane intersection point lies in the triangle
                 // Someting about barycentric coordinates
-                if ( triNormal.Dot((v1 - v0).Cross(point - v0)) >= 0 &&
-                     triNormal.Dot((v2 - v1).Cross(point - v1)) >= 0 &&
-                     triNormal.Dot((v0 - v2).Cross(point - v2)) >= 0 )
+                if ( faceNormal.Dot((v1 - v0).Cross(point - v0)) >= 0 && 
+                     faceNormal.Dot((v2 - v1).Cross(point - v1)) >= 0 && 
+                     faceNormal.Dot((v0 - v2).Cross(point - v2)) >= 0 )
                 {
-                    RayHit hit = t > 0 ? new RayHit(point, triNormal, ray.Direction, this.material) : null;
-                    return hit;
-                }
-            } 
+                    if(!hasVertexNormals) 
+                    {
+                        RayHit hit = t > 0 ? new RayHit(point, faceNormal.Normalized(), ray.Direction, this.material) : null;
+                        return hit;   
+                    }
+                    else 
+                    {
+                        double area = faceNormal.Length();
+                        double v = ((v1 - v0).Cross(point - v0).Length()) / area;
+                        double u = ((v2 - v1).Cross(point - v1).Length()) / area;
+                        Vector3 interpolatedNormal = v * n0 + u * n1 + (1 - u - v) * n2;
+                        RayHit hit = t > 0 ? new RayHit(point, interpolatedNormal.Normalized(), ray.Direction, this.material) : null;
+                        return hit;   
+                    }
+                } 
+            }
             return null;
         }
-
         /// <summary>
         /// The material of the triangle.
         /// </summary>

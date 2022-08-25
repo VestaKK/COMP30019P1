@@ -7,11 +7,13 @@ namespace RayTracer
     /// </summary>
     public class ObjModel : SceneEntity
     {
+        
+        private double radiusSq;
         private const double BIAS = 1e-4;
         private Material material;
-        List<Vector3> vertices;
-        List<Vector3> normals;
-        List<Triangle> faces;
+        private Triangle[] faces;
+
+        private Vector3 center;
         /// <summary>
         /// Construct a new OBJ model.
         /// </summary>
@@ -22,10 +24,12 @@ namespace RayTracer
         public ObjModel(string objFilePath, Vector3 offset, double scale, Material material)
         {
             this.material = material;
-            this.normals  = new List<Vector3>();
-            this.vertices = new List<Vector3>();
-            this.faces = new List<Triangle>();
-           
+            List<Vector3> normals  = new List<Vector3>();
+            List<Vector3> vertices = new List<Vector3>();
+            List<Triangle> faces = new List<Triangle>();
+            this.radiusSq = -1.0d;
+            this.center = offset;
+
             // Here's some code to get you started reading the file...
             string[] lines = File.ReadAllLines(objFilePath);
             for (int i = 0; i < lines.Length; i++)
@@ -35,6 +39,9 @@ namespace RayTracer
                 {
                     case "v":
                         Vector3 vertex = new Vector3(double.Parse(args[1]), double.Parse(args[2]), double.Parse(args[3]));
+
+                        if (vertex.LengthSq() > this.radiusSq) this.radiusSq = vertex.LengthSq();
+
                         vertices.Add((scale * vertex) + offset);
                         break;
                     case "vn":
@@ -44,25 +51,25 @@ namespace RayTracer
                     case "f":
                         string[] indices = args[1..^0];
                         Vector3[] triVerts = new Vector3[3];
-                        
+                        Vector3[] triNorms = new Vector3[3];
                         for(int j=0; j<3; j++) 
                         {
                             int vertIndex = int.Parse(indices[j].Split("//")[0]);
                             int normIndex = int.Parse(indices[j].Split("//")[1]);
-                            triVerts[j] = this.vertices[vertIndex - 1];
+                            triVerts[j] = vertices[vertIndex - 1];
+                            triNorms[j] = normals[normIndex - 1];
                         }
                         
-                        this.faces.Add(new Triangle(triVerts[0], 
-                                                    triVerts[1], 
-                                                    triVerts[2], 
+                        faces.Add(new Triangle(triVerts[0], triVerts[1], triVerts[2], 
+                                                    triNorms[0], triNorms[1], triNorms[2], 
                                                     this.material));
-                        
                         break;
                     default:
                         break;
-                    
                 }
             }
+
+            this.faces = faces.ToArray();
         }
 
         /// <summary>
@@ -73,26 +80,42 @@ namespace RayTracer
         /// <returns>Ray hit data, or null if no hit</returns>
         public RayHit Intersect(Ray ray)
         {
+            
+            // We simulate a bounding sphere around the object
+            Vector3 Orig2Cent = this.center - ray.Origin;
+            double triAdj = Orig2Cent.Dot(ray.Direction);
+            double triHypSq = Orig2Cent.LengthSq();
+            double triAdjSq = triAdj * triAdj;
+            double triOppSq = triHypSq - triAdjSq;
+
+            // We exit if the ray doesn't intersect the bounding sphere at all
+            if (triOppSq > this.radiusSq) return null;
+
+            // Otherwise we continue with calculating the closest triangle 
+            // to the ray
+            return ClosestHit(ray);
+        }
+
+        private RayHit ClosestHit(Ray ray)
+        {
             double closest2origin= -1.0d;
-            RayHit closest = new RayHit(new Vector3(0.0f, 0.0f, 0.0f), new Vector3(0.0f, 0.0f, 0.0f), new Vector3(0.0f, 0.0f, 0.0f), this.Material);
+            RayHit closest = null;
 
-            foreach(Triangle face in this.faces) 
+            foreach(var triangle in this.faces)
             {
-                RayHit faceHit = face.Intersect(ray);
-
-                if (faceHit != null && closest2origin == -1.0d) 
+                RayHit hit = triangle.Intersect(ray);
+                if (hit != null && closest2origin == -1.0d) 
                 {
-                    closest = faceHit;
-                    closest2origin = (faceHit.Position + BIAS*faceHit.Normal - ray.Origin).LengthSq();
+                    closest = hit;
+                    closest2origin = (hit.Position + BIAS*hit.Normal - ray.Origin).LengthSq();
                     continue;
-                }
-                else if (faceHit != null && closest2origin != -1.0d)
+                } 
+                else if (hit != null && closest2origin != -1.0d)
                 {
-                    double hit2origin = (faceHit.Position + BIAS*faceHit.Normal - ray.Origin).LengthSq();
-
+                    double hit2origin = (hit.Position + BIAS*hit.Normal - ray.Origin).LengthSq();
                     if (closest2origin > hit2origin)
                     {
-                        closest = faceHit;
+                        closest = hit;
                         closest2origin = hit2origin;
                     }
                 }
