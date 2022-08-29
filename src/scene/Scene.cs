@@ -11,7 +11,7 @@ namespace RayTracer
     public class Scene
     {
         private const double BIAS = 1e-4;
-        private const double maxDepth = 5;
+        private const double maxDepth = 10;
         private SceneOptions options;
         private ISet<SceneEntity> entities;
         private ISet<PointLight> lights;
@@ -64,8 +64,8 @@ namespace RayTracer
                 for (int i=0; i < outputImage.Width; i++)
                 for (int j=0; j < outputImage.Height; j++)
                 {   
-                    Ray ray = new Ray(camera, (ImagePlaneCoordinate((i + 0.5d) * gridSizeX, (j + 0.5d) * gridSizeY, outputImage) - camera).Normalized());
-
+                    Ray ray = new Ray(camera, (ImagePlaneCoordinate((i + 0.5d) * gridSizeX, 
+                                                                    (j + 0.5d) * gridSizeY, outputImage) - camera).Normalized());
                     RayHit closest = ClosestHit(ray);
 
                     Color pixelColor = closest == null ?  new Color(0.0f, 0.0f, 0.0f) : CalculateColor(closest, 0);
@@ -85,46 +85,64 @@ namespace RayTracer
                     for (int px=0; px < this.options.AAMultiplier; px++)
                     for (int py=0; py < this.options.AAMultiplier; py++)
                     {
-
+                        
+                        // Fire a ray through each subpixel of a given pixel
                         Ray ray = new Ray(camera, (ImagePlaneCoordinate((i + (px + 0.5) * pixelPartition) * gridSizeX, 
                                                                         (j + (py + 0.5) * pixelPartition) * gridSizeY, outputImage) - camera).Normalized());
+
+                        // Find which surface the ray hits first
                         RayHit closest = ClosestHit(ray);
 
+                        // Add surface colour to the output Color
                         outputColor += closest == null ?  new Color(0.0f, 0.0f, 0.0f) : CalculateColor(closest, 0);
                     }
 
+                    // Average the colour values between the subpixels scanned
                     outputImage.SetPixel(i, j, outputColor/(AAMultiplier * AAMultiplier));
                 }
             }
         }
 
+        // Used for firing of Primary Rays and Secondary Rays
         private RayHit ClosestHit(Ray ray)
         {
-            double closest2origin= -1.0d;
+            double closestDist = -1.0d;
+            Vector3 closestVec = new Vector3(0.0f, 0.0f, 0.0f);
             RayHit closest = null;
 
             foreach(var entity in this.entities)
             {
                 RayHit hit = entity.Intersect(ray);
-                if (hit != null && closest2origin == -1.0d) 
+
+                if (hit == null) continue;
+
+                RayHit altHit = new RayHit(hit.Position - BIAS*hit.Incident, hit.Normal, hit.Incident, hit.Material);
+                Vector3 currentVec = altHit.Position - ray.Origin;
+
+                if (closestDist == -1.0d) 
                 {
-                    closest = hit;
-                    closest2origin = (hit.Position - BIAS*(hit.Position - ray.Origin) - ray.Origin).LengthSq();
-                    continue;
-                } 
-                else if (hit != null && closest2origin != -1.0d)
-                {
-                    double hit2origin = (hit.Position - BIAS*(hit.Position - ray.Origin) - ray.Origin).LengthSq();
-                    if (closest2origin > hit2origin)
+                    if (currentVec.Dot(ray.Direction) > 0) 
                     {
                         closest = hit;
-                        closest2origin = hit2origin;
+                        closestVec = currentVec;
+                        closestDist = (currentVec).LengthSq();
+                    }
+                } 
+                else
+                {
+                    if (closestDist > currentVec.LengthSq() &&
+                        currentVec.Dot(ray.Direction) > 0)
+                    {
+                        closest = hit;
+                        closestVec = currentVec;
+                        closestDist = (currentVec).LengthSq();
                     }
                 }
             }
             return closest;
         }
-
+        
+        // Only used for diffuse Lighting because its more efficient there
         private Boolean LineOfSight(Vector3 origin, Vector3 destination) 
         {
             Vector3 adjustedOrigin = origin + BIAS*(destination - origin);
@@ -180,7 +198,6 @@ namespace RayTracer
                 if (altHit.Normal.Dot(hit2Light) > 0 && directLight)
                     surfaceColor += (hit.Material.Color * pointLight.Color) * altHit.Normal.Dot(hit2Light);
             }
-
             return surfaceColor;
         }
 
@@ -210,6 +227,10 @@ namespace RayTracer
             RayHit altHit;
             Vector3 I;
             Vector3 N;
+
+            // etaT is the index refraction of the tramission material
+            // etaI is the index of refraction of incident material
+            // eta is the ratio between these two variables
             double etaT;
             double etaI;
             double eta;
@@ -237,7 +258,6 @@ namespace RayTracer
                 etaI = currHit.Material.RefractiveIndex;
             }
 
-            // eta is essentially aspect ratio but for refracted angles
             eta = etaI/etaT;
             double cosI = N.Dot(I.Reversed());           
             double k = 1 - eta * eta * (1 - cosI * cosI);
@@ -250,26 +270,25 @@ namespace RayTracer
                 return RecursiveReflection(internalHit, depth + 1);
             }
             
-            // We now create the refracted ray
+            // We now create the refracted ray, knowing that refraction will occur
             Vector3 T = ((eta*cosI - Math.Sqrt(k))*N + eta*I).Normalized();
             Ray transmitted = new Ray(altHit.Position, T);
 
-            foreach(var entity in this.entities) {
-                RayHit nextHit = entity.Intersect(transmitted);
-                if (nextHit != null && LineOfSight(nextHit.Position, transmitted.Origin))
+            RayHit nextHit = ClosestHit(transmitted);
+
+            if (nextHit != null)
+            {
+                switch(nextHit.Material.Type)
                 {
-                    switch(nextHit.Material.Type)
-                    {
-                        case Material.MaterialType.Refractive:
-                            refractedColor = RecursiveRefraction(nextHit, depth + 1);
-                            break;
-                        default:
-                            refractedColor = CalculateColor(nextHit, depth + 1);
-                            break;
-                    }
+                    case Material.MaterialType.Refractive:
+                        refractedColor = RecursiveRefraction(nextHit, depth + 1);
+                        break;
+                    default:
+                        refractedColor = CalculateColor(nextHit, depth + 1);
+                        break;
                 }
             }
-
+            
             double FR = Fresnel(etaI, etaT, cosI);
             reflectedColor = RecursiveReflection(currHit, depth + 1);
 
@@ -286,23 +305,21 @@ namespace RayTracer
             Vector3 reflectedVector = altHit.Incident - 2 * altHit.Incident.Dot(altHit.Normal) * altHit.Normal; 
             Ray reflectedRay = new Ray(altHit.Position, reflectedVector.Normalized());
             
-            foreach (var entity in this.entities) 
-            {   
-                RayHit nextHit = entity.Intersect(reflectedRay);
+            RayHit nextHit = ClosestHit(reflectedRay);
                 
-                if (nextHit != null && LineOfSight(nextHit.Position, altHit.Position))
+            if (nextHit != null)
+            {
+                switch(nextHit.Material.Type)
                 {
-                    switch(nextHit.Material.Type)
-                    {
-                        case Material.MaterialType.Reflective:
-                            surfaceColor = RecursiveReflection(nextHit, depth + 1);
-                            break;
-                        default:
-                            surfaceColor = CalculateColor(nextHit, depth + 1);
-                            break;
-                    }
+                    case Material.MaterialType.Reflective:
+                        surfaceColor = RecursiveReflection(nextHit, depth + 1);
+                        break;
+                    default:
+                        surfaceColor = CalculateColor(nextHit, depth + 1);
+                        break;
                 }
             }
+
             return surfaceColor;
         }
 

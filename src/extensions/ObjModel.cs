@@ -1,5 +1,6 @@
 using System.IO;
 using System.Collections.Generic;
+using System.Threading.Tasks;
 namespace RayTracer
 {
     /// <summary>
@@ -24,11 +25,11 @@ namespace RayTracer
         public ObjModel(string objFilePath, Vector3 offset, double scale, Material material)
         {
             this.material = material;
+            this.radiusSq = -1.0d;
+            this.center = offset;
             List<Vector3> normals  = new List<Vector3>();
             List<Vector3> vertices = new List<Vector3>();
             List<Triangle> faces = new List<Triangle>();
-            this.radiusSq = -1.0d;
-            this.center = offset;
 
             // Here's some code to get you started reading the file...
             string[] lines = File.ReadAllLines(objFilePath);
@@ -52,6 +53,7 @@ namespace RayTracer
                         string[] indices = args[1..^0];
                         Vector3[] triVerts = new Vector3[3];
                         Vector3[] triNorms = new Vector3[3];
+                        
                         for(int j=0; j<3; j++) 
                         {
                             int vertIndex = int.Parse(indices[j].Split("//")[0]);
@@ -61,14 +63,13 @@ namespace RayTracer
                         }
                         
                         faces.Add(new Triangle(triVerts[0], triVerts[1], triVerts[2], 
-                                                    triNorms[0], triNorms[1], triNorms[2], 
-                                                    this.material));
+                                               triNorms[0], triNorms[1], triNorms[2], 
+                                               this.material));
                         break;
                     default:
                         break;
                 }
             }
-
             this.faces = faces.ToArray();
         }
 
@@ -93,33 +94,45 @@ namespace RayTracer
 
             // Otherwise we continue with calculating the closest triangle 
             // to the ray
-            return ClosestHit(ray);
+            return ClosestTriangle(ray);
         }
 
-        private RayHit ClosestHit(Ray ray)
+        private RayHit ClosestTriangle(Ray ray)
         {
-            double closest2origin= -1.0d;
+            double closestDist = -1.0d;
+            Vector3 closestVec = new Vector3(0.0f, 0.0f, 0.0f);
             RayHit closest = null;
 
-            foreach(var triangle in this.faces)
-            {
+            Parallel.ForEach(this.faces, triangle => {
+                
                 RayHit hit = triangle.Intersect(ray);
-                if (hit != null && closest2origin == -1.0d) 
+
+                if (hit == null) return;
+
+                RayHit altHit = new RayHit(hit.Position - BIAS*hit.Incident, hit.Normal, hit.Incident, hit.Material);
+                Vector3 currentVec = altHit.Position - ray.Origin;
+
+                if (closestDist == -1.0d) 
                 {
-                    closest = hit;
-                    closest2origin = (hit.Position + BIAS*hit.Normal - ray.Origin).LengthSq();
-                    continue;
-                } 
-                else if (hit != null && closest2origin != -1.0d)
-                {
-                    double hit2origin = (hit.Position + BIAS*hit.Normal - ray.Origin).LengthSq();
-                    if (closest2origin > hit2origin)
+                    if (currentVec.Dot(ray.Direction) > 0) 
                     {
                         closest = hit;
-                        closest2origin = hit2origin;
+                        closestVec = currentVec;
+                        closestDist = (currentVec).LengthSq();
+                    }
+                } 
+                else
+                {
+                    if (closestDist > currentVec.LengthSq() &&
+                        currentVec.Dot(ray.Direction) > 0)
+                    {
+                        closest = hit;
+                        closestVec = currentVec;
+                        closestDist = (currentVec).LengthSq();
                     }
                 }
-            }
+            });
+
             return closest;
         }
 
