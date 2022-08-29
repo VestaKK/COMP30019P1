@@ -11,7 +11,7 @@ namespace RayTracer
     public class Scene
     {
         private const double BIAS = 1e-4;
-        private const double maxDepth = 10;
+        private const double maxDepth = 100;
         private SceneOptions options;
         private ISet<SceneEntity> entities;
         private ISet<PointLight> lights;
@@ -106,7 +106,7 @@ namespace RayTracer
         // Used for firing of Primary Rays and Secondary Rays
         private RayHit ClosestHit(Ray ray)
         {
-            double closestDist = -1.0d;
+            double closestDist = double.PositiveInfinity;
             Vector3 closestVec = new Vector3(0.0f, 0.0f, 0.0f);
             RayHit closest = null;
 
@@ -119,24 +119,12 @@ namespace RayTracer
                 RayHit altHit = new RayHit(hit.Position - BIAS*hit.Incident, hit.Normal, hit.Incident, hit.Material);
                 Vector3 currentVec = altHit.Position - ray.Origin;
 
-                if (closestDist == -1.0d) 
+                if (closestDist > currentVec.LengthSq() &&
+                    currentVec.Dot(ray.Direction) > 0)
                 {
-                    if (currentVec.Dot(ray.Direction) > 0) 
-                    {
-                        closest = hit;
-                        closestVec = currentVec;
-                        closestDist = (currentVec).LengthSq();
-                    }
-                } 
-                else
-                {
-                    if (closestDist > currentVec.LengthSq() &&
-                        currentVec.Dot(ray.Direction) > 0)
-                    {
-                        closest = hit;
-                        closestVec = currentVec;
-                        closestDist = (currentVec).LengthSq();
-                    }
+                    closest = hit;
+                    closestVec = currentVec;
+                    closestDist = (currentVec).LengthSq();
                 }
             }
             return closest;
