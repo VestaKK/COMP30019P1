@@ -45,11 +45,25 @@ Tip: To tick, place an x between the square brackes [ ], like so: [x]
 - [ ] Option B - Ambient lighting/occlusion (+6)
 - [x] Option C - OBJ models (+6)
 - [ ] Option D - Glossy materials (+3)
-- [ ] Option E - Custom camera orientation (+3)
+- [x] Option E - Custom camera orientation (+3)
 - [ ] Option F - Beer's law (+3)
 - [ ] Option G - Depth of field (+3)
 
-*Please summarise your approach(es) to stage 3 here.*
+Please summarise your approach(es) to stage 3 here.*
+
+OBJ models:
+- Loaded in vertices, vertex normals and faces with simple string parsing
+- Faces are stored as an array of Triangle primitives
+- Triangles updated to store information about both vertexs and vertex normals
+- Bool hasVertexNormals allows for conditional vertex normal interpolation for the
+sake of 'smoother' shading of obj surface (since obj provides surface normals but
+a normal triangle primitive doesn't)
+- Optimised Obj ray collision detecting using AABB ray collision
+- Using Multithreading to speed up obj triangle collision detection
+
+Custom Camera orientation:
+- Used Rodrigues' Rotation Formula using left handed coordinate system
+- Applied extra logic to allow rotations from -360 -> 360 degress
 
 ## Final scene render
 

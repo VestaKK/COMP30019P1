@@ -322,13 +322,39 @@ namespace RayTracer
             double fovLength = 2.0d * Math.Tan(fieldOfView*Deg2Rad / 2) * 1.0d;
             double imagePlaneHeight = fovLength;
             double imagePlaneWidth = fovLength * aspectRatio;
+            
+            // Using Rodrigues' Rotation Formula
+            Vector3 _axisX = new Vector3(1.0f, 0.0f, 0.0f);
+            Vector3 _axisY = new Vector3(0.0f, 1.0f, 0.0f);
+            Vector3 _axisZ = new Vector3(0.0f, 0.0f, 1.0f);
 
-            // on the assumption that the image plane is centered on (0,0,1)
-            double cx = (x - 0.5d) * imagePlaneWidth;
-            double cy = (0.5d - y) * imagePlaneHeight;
-            double cz = 1.0d;
+            Vector3 axisR = this.options.CameraAxis.Normalized();
 
-            return new Vector3(cx, cy, cz);
+            double cameraAngle = this.options.CameraAngle % 360;
+
+            if (cameraAngle > 180)
+            {
+                cameraAngle -= 360;
+            } 
+            else if (cameraAngle < -180) 
+            {
+                cameraAngle += 360;
+            }
+
+            double cosT = Math.Cos(Deg2Rad * (this.options.CameraAngle));
+            double sinT = Math.Sqrt(1 - cosT * cosT);
+
+            if (this.options.CameraAngle < 0) sinT *= -1;
+
+            // adjusted for left hand coordinate system
+            Vector3 axisX = _axisX*cosT + (axisR.Cross(_axisX))*sinT + axisR*(axisR.Dot(_axisX))*(1 - cosT);
+            Vector3 axisY = _axisY*cosT + (axisR.Cross(_axisY))*sinT + axisR*(axisR.Dot(_axisY))*(1 - cosT);
+            Vector3 axisZ = _axisZ*cosT + (axisR.Cross(_axisZ))*sinT + axisR*(axisR.Dot(_axisZ))*(1 - cosT);
+
+            return (x - 0.5d)*imagePlaneWidth*axisX + 
+                   (0.5d - y)*imagePlaneHeight*axisY + 
+                   axisZ + 
+                   this.options.CameraPosition;
         }
     }
 }
