@@ -11,6 +11,8 @@ namespace RayTracer
         private Vector3 normal;
         private Material material;
 
+        private Boolean isRefractive;
+
         /// <summary>
         /// Construct an infinite plane object.
         /// </summary>
@@ -22,6 +24,7 @@ namespace RayTracer
             this.center = center;
             this.normal = normal.Normalized();
             this.material = material;
+            this.isRefractive = material.Type == Material.MaterialType.Refractive ? true : false;
         }
 
         /// <summary>
@@ -34,15 +37,17 @@ namespace RayTracer
             Vector3 direction = ray.Direction;
             Vector3 origin = ray.Origin;
             
-            // Calculate the intersection between ray and line;
-            if (this.normal.Dot(direction) < 0) 
+            // if the normal and the ray are facing the same direction
+            // the place is hit from behind
+            if (this.normal.Dot(direction) < 0 || isRefractive) 
             {
+                // Calculate the distance to the plane
                 double t = this.normal.Dot(this.center - origin) / direction.Dot(normal);
                 Vector3 intersect = origin + t*direction;
 
                 // if t > 0, this means the ray has hit the plane in front 
                 // of the camera and is viewable;
-                return t > 0 ? new RayHit(intersect, this.normal.Normalized(), direction.Normalized(), this.material) : null;
+                return t > 0 || isRefractive ? new RayHit(intersect, this.normal.Normalized(), direction.Normalized(), this.material) : null;
             }   
             
             return null;

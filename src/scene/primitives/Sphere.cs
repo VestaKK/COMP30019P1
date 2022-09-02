@@ -63,12 +63,13 @@ namespace RayTracer
                 Vector3 p2Normal = p2 - center;
 
                 // if the origin of the ray is outside the sphere, we know that our ray hits
-                // p1. Otherwise we know that the ray has been shot from inside the sphere and we
+                // p1. Otherwise we know that the ray has been fired from inside the sphere and we
                 // have hit p2.
                 return Orig2Cent.LengthSq() > radiusSq ? 
                        new RayHit(p1, p1Normal.Normalized(), ray.Direction.Normalized(), this.material) :
                        new RayHit(p2, p2Normal.Normalized(), ray.Direction.Normalized(), this.material);
-            } 
+            }
+            
             return null;
         }
 

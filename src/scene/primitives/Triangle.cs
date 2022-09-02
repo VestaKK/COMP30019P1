@@ -7,13 +7,13 @@ namespace RayTracer
     /// </summary>
     public class Triangle : SceneEntity
     {
-        private const double BIAS = 1e-4;
         private Vector3 v0, v1, v2;
         private Vector3 n0, n1, n2;
         private Vector3 faceNormal;
         private Material material;
 
         private Boolean hasVertexNormals;
+        private Boolean isRefractive;
 
         /// <summary>
         /// Construct a triangle object given three vertices.
@@ -28,14 +28,18 @@ namespace RayTracer
             this.v1 = v1;
             this.v2 = v2;
 
+            // Precalculate face normal to save time
             this.faceNormal = (v1 - v0).Cross(v2 - v0);
 
             this.n0 = this.faceNormal;
             this.n1 = this.faceNormal;
             this.n2 = this.faceNormal;
 
-            this.hasVertexNormals = false;
             this.material = material;
+
+            this.hasVertexNormals = false;
+            // Storing this makes code just a little faster
+            this.isRefractive = material.Type == Material.MaterialType.Refractive ? true : false;
         }
 
         public Triangle(Vector3 v0, Vector3 v1, Vector3 v2, 
@@ -45,15 +49,19 @@ namespace RayTracer
             this.v0 = v0;
             this.v1 = v1;
             this.v2 = v2;
+            
+            // Precalculate face normal to save time
+            this.faceNormal = (v1 - v0).Cross(v2 - v0);
 
             this.n0 = n0;
             this.n1 = n1;
             this.n2 = n2;
 
-            this.faceNormal = (v1 - v0).Cross(v2 - v0);
-
-            this.hasVertexNormals = true;
             this.material = material;
+            this.hasVertexNormals = true;
+
+            // Storing this makes code just a little faster
+            this.isRefractive = material.Type == Material.MaterialType.Refractive ? true : false;
         }
 
         /// <summary>
@@ -62,48 +70,47 @@ namespace RayTracer
         /// <param name="ray">Ray to check</param>
         /// <returns>Hit data (or null if no intersection)</returns>
         public RayHit Intersect(Ray ray)
-        {
-            Vector3 v0 = this.v0;
-            Vector3 v1 = this.v1;
-            Vector3 v2 = this.v2;
-            Vector3 faceNormal = this.faceNormal;
-            
-            if (faceNormal.Dot(ray.Direction) < 0) 
+        {            
+            if (faceNormal.Dot(ray.Direction) < 0 || isRefractive) 
             {
-                // Literally copying from the slides lmao
-                // Look I don't make the rules fair game is fair game
+                // Calculate distanace from ray to plane that the triangle sits on
                 double t = faceNormal.Dot(v0 - ray.Origin) / ray.Direction.Dot(faceNormal);
                 
-                // if t < 0, the triangle is being hit from behind
-                if (t < 0) return null;
+                // if t < 0, the triangle is being hit from behind. Back face culling is used for objects
+                // that arent refractive
+                if (t < 0 && !isRefractive) return null;
 
                 Vector3 point = ray.Origin + t * ray.Direction;
 
                 // Finding if plane intersection point lies in the triangle
                 // Using inside Out test
-                if ( faceNormal.Dot((v1 - v0).Cross(point - v0)) >= 0 && 
-                     faceNormal.Dot((v2 - v1).Cross(point - v1)) >= 0 && 
-                     faceNormal.Dot((v0 - v2).Cross(point - v2)) >= 0 )
-                {
-                    if(!hasVertexNormals) 
-                    {
-                        return new RayHit(point, faceNormal.Normalized(), ray.Direction, this.material); 
-                    }
-                    else 
-                    {
-                        // Calculate Barycentric Coordinates
-                        double area = faceNormal.Length();
-                        double v = ((v1 - v0).Cross(point - v0).Length()) / area;
-                        double u = ((v2 - v1).Cross(point - v1).Length()) / area;
+                double _v = faceNormal.Dot((v1 - v0).Cross(point - v0));
+                double _u = faceNormal.Dot((v2 - v1).Cross(point - v1));
+                double _w = faceNormal.Dot((v0 - v2).Cross(point - v2));
 
+                if ( _v >= 0 && _u >= 0 && _w >= 0 )
+                {
+                    if(this.hasVertexNormals) 
+                    {
+                        // Calculate Barycentric Coordinates of point of the triangle
+                        double triAreaSq = faceNormal.Dot(faceNormal);
+                        double v = _v / triAreaSq;
+                        double u = _u / triAreaSq;
+
+                        // Find the interpolated normal using Barycentric Coordinates
                         Vector3 interpolatedNormal = v * n0 + u * n1 + (1 - u - v) * n2;
 
                         return new RayHit(point, interpolatedNormal.Normalized(), ray.Direction, this.material);   
+                    }
+                    else 
+                    {
+                        return new RayHit(point, faceNormal.Normalized(), ray.Direction, this.material); 
                     }
                 } 
             }
             return null;
         }
+
         /// <summary>
         /// The material of the triangle.
         /// </summary>

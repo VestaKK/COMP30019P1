@@ -10,8 +10,8 @@ namespace RayTracer
     /// </summary>
     public class Scene
     {
-        private const double BIAS = 1e-4;
-        private const double maxDepth = 100;
+        private const double BIAS = 1e-5;
+        private const double maxDepth = 20;
         private SceneOptions options;
         private ISet<SceneEntity> entities;
         private ISet<PointLight> lights;
@@ -55,27 +55,33 @@ namespace RayTracer
         public void Render(Image outputImage)
         {
             Vector3 camera = this.options.CameraPosition;
+
+            // Dimensions of a pixel in world space
             double gridSizeX = 1.0d/outputImage.Width;
             double gridSizeY = 1.0d/outputImage.Height;
-            double AAMultiplier = this.options.AAMultiplier;
-            
-            if (AAMultiplier == 1.0d) 
+
+            // Our loops change depending if there is anti-aliasing
+            if (this.options.AAMultiplier == 1.0d) 
             {
                 for (int i=0; i < outputImage.Width; i++)
                 for (int j=0; j < outputImage.Height; j++)
                 {   
+                    // Fire a ray through each subpixel of a given pixel from the camera
                     Ray ray = new Ray(camera, (ImagePlaneCoordinate((i + 0.5d) * gridSizeX, 
                                                                     (j + 0.5d) * gridSizeY, outputImage) - camera).Normalized());
+
+                    // Find which surface the ray hits first
                     RayHit closest = ClosestHit(ray);
 
+                    // Output the colour;
                     Color pixelColor = closest == null ?  new Color(0.0f, 0.0f, 0.0f) : CalculateColor(closest, 0);
                     outputImage.SetPixel(i, j, pixelColor);
                 }
             }
             else 
             {
-                // calculation for the dimensions of a subpixel
-                double pixelPartition = 1.0d/AAMultiplier;
+                // Calculation for the dimensions of a subpixel
+                double pixelPartition = 1.0d/this.options.AAMultiplier;
 
                 for (int i=0; i < outputImage.Width; i++)
                 for (int j=0; j < outputImage.Height; j++) 
@@ -86,7 +92,7 @@ namespace RayTracer
                     for (int py=0; py < this.options.AAMultiplier; py++)
                     {
                         
-                        // Fire a ray through each subpixel of a given pixel
+                        // Fire a ray through each subpixel of a given pixel from the camera
                         Ray ray = new Ray(camera, (ImagePlaneCoordinate((i + (px + 0.5) * pixelPartition) * gridSizeX, 
                                                                         (j + (py + 0.5) * pixelPartition) * gridSizeY, outputImage) - camera).Normalized());
 
@@ -94,43 +100,49 @@ namespace RayTracer
                         RayHit closest = ClosestHit(ray);
 
                         // Add surface colour to the output Color
-                        outputColor += closest == null ?  new Color(0.0f, 0.0f, 0.0f) : CalculateColor(closest, 0);
+                        outputColor += closest != null ? CalculateColor(closest, 0) : new Color(0.0f, 0.0f, 0.0f);
                     }
 
-                    // Average the colour values between the subpixels scanned
-                    outputImage.SetPixel(i, j, outputColor/(AAMultiplier * AAMultiplier));
+                    // Average the colour values between the subpixels scanned and shade the pixel
+                    outputImage.SetPixel(i, j, outputColor/(this.options.AAMultiplier * this.options.AAMultiplier));
                 }
             }
         }
 
-        // Used for firing of Primary Rays and Secondary Rays
+        /// <summary>
+        /// Returns a RayHit for the closest surface that is hit by the ray 
+        /// </summary>
         private RayHit ClosestHit(Ray ray)
         {
+            // Store information about the closest viewable surface
             double closestDist = double.PositiveInfinity;
-            Vector3 closestVec = new Vector3(0.0f, 0.0f, 0.0f);
             RayHit closest = null;
 
             foreach(var entity in this.entities)
             {
+                // See if the ray hits an entity
                 RayHit hit = entity.Intersect(ray);
 
                 if (hit == null) continue;
 
+                // We adjust the hit point of the RayHit to avoid errors due to floating point precision issues
                 RayHit altHit = new RayHit(hit.Position - BIAS*hit.Incident, hit.Normal, hit.Incident, hit.Material);
                 Vector3 currentVec = altHit.Position - ray.Origin;
 
+                // Compare hits to determine the closest surface to the ray
                 if (closestDist > currentVec.LengthSq() &&
                     currentVec.Dot(ray.Direction) > 0)
                 {
                     closest = hit;
-                    closestVec = currentVec;
                     closestDist = (currentVec).LengthSq();
                 }
             }
             return closest;
         }
         
-        // Only used for diffuse Lighting because its more efficient there
+        /// <summary>
+        /// Checks if there is clear space between two given coordinates
+        /// </summary>
         private Boolean LineOfSight(Vector3 origin, Vector3 destination) 
         {
             Vector3 adjustedOrigin = origin + BIAS*(destination - origin);
@@ -156,6 +168,10 @@ namespace RayTracer
             return true;
         }
         
+        /// <summary>
+        /// Generic function that returns a colour based on the hit
+        /// surface material
+        /// </summary>
         private Color CalculateColor(RayHit hit, int depth) 
         {
             switch (hit.Material.Type) 
@@ -170,25 +186,35 @@ namespace RayTracer
                     return new Color(0.0f, 0.0f, 0.0f);
             }
         }
-
+        
+        /// <summary>
+        /// Returns a color based on Diffuse lighting
+        /// </summary>
         private Color DiffuseLighting(RayHit hit) 
         {
-            // This is to prevent shadow acne
+            // Output color
             Color surfaceColor = new Color(0.0f, 0.0f, 0.0f);
+
+            // This is to prevent shadow acne
             RayHit altHit = new RayHit(hit.Position + (BIAS*hit.Normal), hit.Normal, hit.Incident, hit.Material);
             
             foreach (var pointLight in this.lights) 
             {
                 // Check if the Soace between the entity and the pointlight is clear
                 Boolean directLight = LineOfSight(altHit.Position, pointLight.Position);
-                // We react accordingly based on the type of material that has been hit
+
+                // Determine whether or not the surface is facing towards the pointLight
                 Vector3 hit2Light = (pointLight.Position - altHit.Position).Normalized();
                 if (altHit.Normal.Dot(hit2Light) > 0 && directLight)
                     surfaceColor += (hit.Material.Color * pointLight.Color) * altHit.Normal.Dot(hit2Light);
             }
+            
             return surfaceColor;
         }
 
+        /// <summary>
+        /// Calculates Fresnel coefficient
+        /// </summary>
         private double Fresnel(double etaI, double etaT, double cosI) 
         {
             double eta = etaI/etaT;
@@ -196,6 +222,8 @@ namespace RayTracer
             double sinT = eta * sinI;
             double cosT = Math.Sqrt(1 - sinT * sinT);
 
+            // just in case the earlier check for total internal
+            // reflection failed
             if (sinT >= 1) return 1.0d;
 
             double FRPll = ((etaI * cosI) - (etaT * cosT))/((etaI * cosI) + (etaT * cosT));
@@ -205,9 +233,13 @@ namespace RayTracer
             return FR;
         }
 
+
+        /// <summary>
+        /// Recursively calculates the color of a given refractive material
+        /// </summary>
         private Color RecursiveRefraction(RayHit currHit, int depth) 
         {   
-            
+            // Restricts number of recursions to make computer not explode :>
             if (depth > maxDepth) return new Color(0.0f, 0.0f, 0.0f);
 
             Color refractedColor = new Color(0.0f, 0.0f, 0.0f);
@@ -224,7 +256,7 @@ namespace RayTracer
             double eta;
 
             // if this is true it implies that we are hitting the object from the outside
-            // We adjust the hit point below the surfave of the object to prevent self intersection
+            // We adjust the hit point below the surface of the object to prevent self intersection
             if (currHit.Normal.Dot(currHit.Incident) < 0) 
             {
                 altHit = new RayHit(currHit.Position - BIAS*currHit.Normal, currHit.Normal, currHit.Incident, currHit.Material);
@@ -258,7 +290,7 @@ namespace RayTracer
                 return RecursiveReflection(internalHit, depth + 1);
             }
             
-            // We now create the refracted ray, knowing that refraction will occur
+            // Create the refracted ray
             Vector3 T = ((eta*cosI - Math.Sqrt(k))*N + eta*I).Normalized();
             Ray transmitted = new Ray(altHit.Position, T);
 
@@ -283,6 +315,9 @@ namespace RayTracer
             return (1 - FR)*refractedColor + FR*reflectedColor;
         }
 
+        /// <summary>
+        /// Recursively calculates the color of a given reflective material
+        /// </summary>
         private Color RecursiveReflection(RayHit currHit, int depth) 
         {
             if (depth > maxDepth) return new Color(0.0f, 0.0f, 0.0f);
@@ -315,23 +350,27 @@ namespace RayTracer
         {
             // Defining plane as it appears when embedded in the scene
             double fieldOfView = 60.0d;
-            double aspectRatio = outputImage.Width / outputImage.Height;
+            double aspectRatio = outputImage.Width / (double) outputImage.Height;
             double Deg2Rad = Math.PI/180.0d;
 
             // 1.0d not necessary, but it represents the distance from the camera
-            double fovLength = 2.0d * Math.Tan(fieldOfView*Deg2Rad / 2) * 1.0d;
+            double fovLength = 2.0d * Math.Tan(fieldOfView * Deg2Rad / 2) * 1.0d;
             double imagePlaneHeight = fovLength;
-            double imagePlaneWidth = fovLength * aspectRatio;
+            double imagePlaneWidth = imagePlaneHeight * aspectRatio;
             
-            // Using Rodrigues' Rotation Formula
+            // Define basis vectors in the camera space
             Vector3 _axisX = new Vector3(1.0f, 0.0f, 0.0f);
             Vector3 _axisY = new Vector3(0.0f, 1.0f, 0.0f);
             Vector3 _axisZ = new Vector3(0.0f, 0.0f, 1.0f);
 
+            // Normalising makes user input easier
             Vector3 axisR = this.options.CameraAxis.Normalized();
 
+            // Because the equations only consider angles ranging from
+            // 0 -> 180 degress, we want to expand this to a full
+            // -360 -> 360 by converting angles over 180 degrees to their
+            // equivalent negative angle i.e. 190 == -170 degrees
             double cameraAngle = this.options.CameraAngle % 360;
-
             if (cameraAngle > 180)
             {
                 cameraAngle -= 360;
@@ -344,13 +383,16 @@ namespace RayTracer
             double cosT = Math.Cos(Deg2Rad * (this.options.CameraAngle));
             double sinT = Math.Sqrt(1 - cosT * cosT);
 
+            // The value of sinT changes based on sin(-T) = -sin(T)
+            // Allows for anti-clockwise rotation i.e. -180 -> 180 degree rotation
             if (this.options.CameraAngle < 0) sinT *= -1;
 
-            // adjusted for left hand coordinate system
+            // Use Rodrigues' Rotation Formula to calculate axis' in world space
             Vector3 axisX = _axisX*cosT + (axisR.Cross(_axisX))*sinT + axisR*(axisR.Dot(_axisX))*(1 - cosT);
             Vector3 axisY = _axisY*cosT + (axisR.Cross(_axisY))*sinT + axisR*(axisR.Dot(_axisY))*(1 - cosT);
             Vector3 axisZ = _axisZ*cosT + (axisR.Cross(_axisZ))*sinT + axisR*(axisR.Dot(_axisZ))*(1 - cosT);
 
+            // Calculate the pixel coordinate, on top of shifting them according to the camera's position
             return (x - 0.5d)*imagePlaneWidth*axisX + 
                    (0.5d - y)*imagePlaneHeight*axisY + 
                    axisZ + 

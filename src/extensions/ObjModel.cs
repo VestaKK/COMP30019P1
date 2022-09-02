@@ -30,7 +30,6 @@ namespace RayTracer
             this.material = material;
             this.center = offset;
             
-
             List<Vector3> normals  = new List<Vector3>();
             List<Vector3> vertices = new List<Vector3>();
             List<Triangle> faces = new List<Triangle>();
@@ -43,7 +42,9 @@ namespace RayTracer
             double minZ = double.PositiveInfinity;
             double maxZ = double.NegativeInfinity;
 
-            // Here's some code to get you started reading the file...
+            bool hasUV = false;
+            bool hasVN = false;
+
             string[] lines = File.ReadAllLines(objFilePath);
             for (int i = 0; i < lines.Length; i++)
             {
@@ -53,6 +54,7 @@ namespace RayTracer
                     case "v":
                         Vector3 vertex = new Vector3(double.Parse(args[1]), double.Parse(args[2]), double.Parse(args[3]));
 
+                        // Calculating axis aligned bounds for obj
                         if (vertex.X < minX) minX = vertex.X;
                         if (vertex.X > maxX) maxX = vertex.X;
                         if (vertex.Y < minY) minY = vertex.Y;
@@ -62,26 +64,65 @@ namespace RayTracer
 
                         vertices.Add((scale * vertex) + offset);
                         break;
+
                     case "vn":
+                        hasVN = true;
                         Vector3 normal = new Vector3(double.Parse(args[1]), double.Parse(args[2]), double.Parse(args[3]));
                         normals.Add(normal);
                         break;
+
+                    case "vt":
+                        hasUV = true;
+                        break;
+
                     case "f":
+
                         string[] indices = args[1..^0];
                         Vector3[] triVerts = new Vector3[3];
                         Vector3[] triNorms = new Vector3[3];
-                        
-                        for(int j=0; j<3; j++) 
+
+                        if (hasUV && hasVN)
                         {
-                            int vertIndex = int.Parse(indices[j].Split("//")[0]);
-                            int normIndex = int.Parse(indices[j].Split("//")[1]);
-                            triVerts[j] = vertices[vertIndex - 1];
-                            triNorms[j] = normals[normIndex - 1];
+                            for(int j=0; j<3; j++) 
+                            {
+                                int vertIndex = int.Parse(indices[j].Split("/")[0]);
+                                int normIndex = int.Parse(indices[j].Split("/")[2]);
+
+                                triVerts[j] = vertices[vertIndex - 1];
+                                triNorms[j] = normals[normIndex - 1];
+                            }
+
+                            faces.Add(new Triangle(triVerts[0], triVerts[1], triVerts[2], 
+                                                triNorms[0], triNorms[1], triNorms[2], 
+                                                this.material));
                         }
+                        else if(hasVN)
+                        {    
+                            for(int j=0; j<3; j++) 
+                            {
+                                int vertIndex = int.Parse(indices[j].Split("//")[0]);
+                                int normIndex = int.Parse(indices[j].Split("//")[1]);
+
+                                triVerts[j] = vertices[vertIndex - 1];
+                                triNorms[j] = normals[normIndex - 1];
+                            }
+
+                            faces.Add(new Triangle(triVerts[0], triVerts[1], triVerts[2], 
+                                                triNorms[0], triNorms[1], triNorms[2], 
+                                                this.material));
+                        }
+                        else
+                        {
+                            for(int j=0; j<3; j++) 
+                            {
+                                int vertIndex = int.Parse(indices[j]);
+                                triVerts[j] = vertices[vertIndex - 1];
+                            }
+                            
+                            faces.Add(new Triangle(triVerts[0], triVerts[1], triVerts[2], this.material));
+                        }
+
                         
-                        faces.Add(new Triangle(triVerts[0], triVerts[1], triVerts[2], 
-                                               triNorms[0], triNorms[1], triNorms[2], 
-                                               this.material));
                         break;
                     default:
                         break;
@@ -113,6 +154,7 @@ namespace RayTracer
             double tz1;
             
             double inverseDX = 1 / ray.Direction.X;
+
             if (ray.Direction.X >= 0) 
             {
                 tx0 = (this.bMin.X - ray.Origin.X) * inverseDX;
@@ -161,23 +203,29 @@ namespace RayTracer
         private RayHit ClosestTriangle(Ray ray)
         {
             double closestDist = double.PositiveInfinity;
-            Vector3 closestVec = new Vector3(0.0f, 0.0f, 0.0f);
             RayHit closest = null;
 
-            Parallel.ForEach(this.faces, triangle => {
-                
+            // Multithreaded looping through triangles
+            // Only works because there has to be an objective
+            // shortest hit, or none at all
+            Parallel.ForEach(
+                this.faces, 
+                triangle => 
+            {
+                // See if the ray hits an entity
                 RayHit hit = triangle.Intersect(ray);
 
                 if (hit == null) return;
 
+                // We adjust the hit point of the RayHit to avoid errors due to floating point precision issues
                 RayHit altHit = new RayHit(hit.Position - BIAS*hit.Incident, hit.Normal, hit.Incident, hit.Material);
                 Vector3 currentVec = altHit.Position - ray.Origin;
-
+                
+                // Compare hits to determine the closest surface to the ray
                 if (closestDist > currentVec.LengthSq() &&
                     currentVec.Dot(ray.Direction) > 0)
                 {
                     closest = hit;
-                    closestVec = currentVec;
                     closestDist = (currentVec).LengthSq();
                 }
             });
