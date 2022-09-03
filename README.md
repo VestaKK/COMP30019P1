@@ -54,16 +54,20 @@ Please summarise your approach(es) to stage 3 here.*
 OBJ models:
 - Loaded in vertices, vertex normals and faces with simple string parsing
 - Faces are stored as an array of Triangle primitives
-- Triangles updated to store information about both vertexs and vertex normals
-- Bool hasVertexNormals allows for conditional vertex normal interpolation for the
-sake of 'smoother' shading of obj surface (since obj provides surface normals but
-a normal triangle primitive doesn't)
-- Optimised Obj ray collision detecting using AABB ray collision
+- Triangles updated to store information about both vertexs and vertex normals, as well as
+whether or not the material is Refractive (speeds up triangle intersection calculations)
+- Triangles also store a Bool hasVertexNormals allows for conditional vertex normal interpolation for the
+sake of 'smoother' shading of obj surface (since obj can provide surface normals but a normal triangle primitive doesn't)
+- Optimised Obj ray collision detecting using AABB ray collision. Ray must collide with the AABB before
+going through each triangle and finding the closest triangle to the fired ray.
 - Using Multithreading to speed up obj triangle collision detection
 
 Custom Camera orientation:
 - Used Rodrigues' Rotation Formula using left handed coordinate system
-- Applied extra logic to allow rotations from -360 -> 360 degress
+- Rotate the basis vectors in world space first, before continuing the usual calculations
+to translate pixel coordinates to world space coordinates
+- Applied extra logic to allow rotations from -360 -> 360 degress, since Rodrigues' Formula
+only works from angles 0 -> 180 degrees (if you just use one formula).
 
 ## Final scene render
 

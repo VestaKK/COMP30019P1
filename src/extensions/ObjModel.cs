@@ -122,7 +122,6 @@ namespace RayTracer
                             faces.Add(new Triangle(triVerts[0], triVerts[1], triVerts[2], this.material));
                         }
 
-                        
                         break;
                     default:
                         break;
@@ -203,7 +202,7 @@ namespace RayTracer
                 tz1 = (this.bMin.Z - ray.Origin.Z) * inverseDZ;
             }
             
-            // Same as with X and Y
+            // Same condition as with X and Y planes
             if (tx0 > tz1 || tx1 < tz0) return false;
 
             // no need to calculae hit point so we just return

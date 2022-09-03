@@ -392,13 +392,13 @@ namespace RayTracer
             {
                 cameraAngle += 360;
             }
-
+            
             double cosT = Math.Cos(Deg2Rad * (this.options.CameraAngle));
             double sinT = Math.Sqrt(1 - cosT * cosT);
 
             // The value of sinT changes based on sin(-T) = -sin(T)
             // Allows for anti-clockwise rotation i.e. -180 -> 180 degree rotation
-            if (this.options.CameraAngle < 0) sinT *= -1;
+            if (cameraAngle < 0) sinT *= -1;
 
             // Use Rodrigues' Rotation Formula to calculate axis' in world space
             Vector3 axisX = _axisX*cosT + (axisR.Cross(_axisX))*sinT + axisR*(axisR.Dot(_axisX))*(1 - cosT);
