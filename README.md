@@ -67,12 +67,12 @@ Custom Camera orientation:
 
 ## Final scene render
 
-Be sure to replace ```/images/final_scene.png``` with your final render so it
-shows up here.
-
 ![My final render](images/final_scene.png)
 
 This render took **49** minutes and **44** seconds on my PC.
+
+I used the Release Configuration to render this, but the sample scenes should still
+render fine on Debug.
 
 I used the following command to render the image exactly as shown:
 
@@ -121,7 +121,7 @@ dotnet run -- -f tests/sample_scene_2.txt -o images/sample_scene_2.png -x 4
 
 #### Normal interpolation
 
-- The color interpolation can be easily extended for surface normals
+- The color here interpolation can be easily extended for surface normals
 
   Scratchapixel - Barycentric Coordinates: 
   <u>https://www.scratchapixel.com/lessons/3d-basic-rendering/ray-tracing-rendering-a-triangle/barycentric-coordinates#:~:text=To%20compute%20the%20position%20of,(barycentric%20coordinates%20are%20normalized).</u>
@@ -130,21 +130,26 @@ dotnet run -- -f tests/sample_scene_2.txt -o images/sample_scene_2.png -x 4
 - I used scratchapixel mostly just for the fresnel equations, and to understand total internal reflection.
 But I used the youtube video and the Fresnel wiki for most of the implementation, partly because there 
 were errors in scratchapixel and some of the diagrams made no sense. The end result is a mix of all three 
-approaches, although I did take the variable names from scratchapixel because they made the most sense given that
-most explanations of these concepts use the same names (etaT, etaI, eta, cosI).
+approaches, although I did take the variable names from scratchapixel because they made the most sense given that most explanations of these concepts use the same names (etaT, etaI, eta, cosI). Reflection is literally
+one equation I took from StackExchange
 
   Scratchapixel - Reflection-Refraction-Fresnel: 
   <u>https://www.scratchapixel.com/lessons/3d-basic-rendering/introduction-to-shading/reflection-refraction-fresnel#:~:text=Remember%20that%20ray-tracing%20is,reflection%20direction%20in%20this%20example</u>
+
+  StackExchange - How to get a reflection Vector:
+  <u>https://math.stackexchange.com/questions/13261/how-to-get-a-reflection-vector</u>
 
   Fresnel Equations - Wikipedia: 
   <u>https://en.wikipedia.org/wiki/Fresnel_equations</u>
 
   Introduction to Computer Graphics (Lecture 11): Ray tracing; reflection and refraction; ray trees: 
-  <u>https://youtu.be/Tyg02tN9oSo<u>
+  <u>https://youtu.be/Tyg02tN9oSo</u>
 
 #### AABB ray collision
-- 
+- Only used AABB to calculate if a collision had occured, not the hitpoint itself since it was mostly
+unnecessary
 
+  Scratchapixel - Ray-box-intersection: 
   <u>https://www.scratchapixel.com/lessons/3d-basic-rendering/minimal-ray-tracer-rendering-simple-shapes/ray-box-intersection</u>
 
 

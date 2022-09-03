@@ -215,6 +215,11 @@ namespace RayTracer
         /// <summary>
         /// Calculates Fresnel coefficient
         /// </summary>
+
+        // Honestly, scratchapixel did more harm than good, took me 2 days to realise
+        // the equations were wrong
+        // https://www.scratchapixel.com/lessons/3d-basic-rendering/introduction-to-shading/reflection-refraction-fresnel#:~:text=Remember%20that%20ray-tracing%20is,reflection%20direction%20in%20this%20example
+        // https://en.wikipedia.org/wiki/Fresnel_equations
         private double Fresnel(double etaI, double etaT, double cosI) 
         {
             double eta = etaI/etaT;
@@ -276,8 +281,11 @@ namespace RayTracer
                 N = currHit.Normal.Reversed();
                 etaT = 1.0d;
                 etaI = currHit.Material.RefractiveIndex;
-            }
-
+            }       
+            
+            // Some variable names used from Scratchapixel, as well as the equations for
+            // the refracted beam and total internal reflection
+            // https://www.scratchapixel.com/lessons/3d-basic-rendering/introduction-to-shading/reflection-refraction-fresnel#:~:text=Remember%20that%20ray-tracing%20is,reflection%20direction%20in%20this%20example
             eta = etaI/etaT;
             double cosI = N.Dot(I.Reversed());           
             double k = 1 - eta * eta * (1 - cosI * cosI);
@@ -320,11 +328,16 @@ namespace RayTracer
         /// </summary>
         private Color RecursiveReflection(RayHit currHit, int depth) 
         {
+            // Base condition for recursive loop
             if (depth > maxDepth) return new Color(0.0f, 0.0f, 0.0f);
 
             Color surfaceColor = new Color(0.0f, 0.0f, 0.0f);
+
+            // Avoiding surface acne by pushing the hit point about the surface of the material
             RayHit altHit = new RayHit(currHit.Position + (BIAS*currHit.Normal), currHit.Normal, currHit.Incident, currHit.Material);
 
+            // Equation taken from here
+            // https://math.stackexchange.com/questions/13261/how-to-get-a-reflection-vector
             Vector3 reflectedVector = altHit.Incident - 2 * altHit.Incident.Dot(altHit.Normal) * altHit.Normal; 
             Ray reflectedRay = new Ray(altHit.Position, reflectedVector.Normalized());
             
