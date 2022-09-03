@@ -74,6 +74,7 @@ namespace RayTracer
             if (faceNormal.Dot(ray.Direction) < 0 || isRefractive) 
             {
                 // Calculate distanace from ray to plane that the triangle sits on
+                // Taken from plane intersection method
                 double t = faceNormal.Dot(v0 - ray.Origin) / ray.Direction.Dot(faceNormal);
                 
                 // if t < 0, the triangle is being hit from behind. Back face culling is used for objects
@@ -82,23 +83,26 @@ namespace RayTracer
 
                 Vector3 point = ray.Origin + t * ray.Direction;
 
+                // Scratchapixel - Barycentric coordinates
+                // https://www.scratchapixel.com/lessons/3d-basic-rendering/ray-tracing-rendering-a-triangle/barycentric-coordinates#:~:text=To%20compute%20the%20position%20of,(barycentric%20coordinates%20are%20normalized)
                 // Finding if plane intersection point lies in the triangle
-                // Using inside Out test
-                double _v = faceNormal.Dot((v1 - v0).Cross(point - v0));
+                // Easier to divide later each component by |facenormal|^2 later
                 double _u = faceNormal.Dot((v2 - v1).Cross(point - v1));
-                double _w = faceNormal.Dot((v0 - v2).Cross(point - v2));
+                double _v = faceNormal.Dot((v0 - v2).Cross(point - v2));
+                double _w = faceNormal.Dot((v1 - v0).Cross(point - v0));
 
-                if ( _v >= 0 && _u >= 0 && _w >= 0 )
+                // Inside out test
+                if ( _u >= 0 && _v >= 0 && _w >= 0 )
                 {
                     if(this.hasVertexNormals) 
                     {
                         // Calculate Barycentric Coordinates of point of the triangle
                         double triAreaSq = faceNormal.Dot(faceNormal);
-                        double v = _v / triAreaSq;
                         double u = _u / triAreaSq;
+                        double v = _v / triAreaSq;
 
                         // Find the interpolated normal using Barycentric Coordinates
-                        Vector3 interpolatedNormal = v * n0 + u * n1 + (1 - u - v) * n2;
+                        Vector3 interpolatedNormal = u * n0 + v * n1 + (1 - u - v) * n2;
 
                         return new RayHit(point, interpolatedNormal.Normalized(), ray.Direction, this.material);   
                     }

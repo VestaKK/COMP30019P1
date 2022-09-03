@@ -42,6 +42,7 @@ namespace RayTracer
             if (this.normal.Dot(direction) < 0 || isRefractive) 
             {
                 // Calculate the distance to the plane
+                // Taken from University Slides
                 double t = this.normal.Dot(this.center - origin) / direction.Dot(normal);
                 Vector3 intersect = origin + t*direction;
 

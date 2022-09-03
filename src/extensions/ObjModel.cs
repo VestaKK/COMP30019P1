@@ -144,6 +144,9 @@ namespace RayTracer
             return BoundingBoxHit(ray) ? ClosestTriangle(ray): null;
         }
 
+        // Scratchapixel - Ray-Box Intersection
+        // https://www.scratchapixel.com/lessons/3d-basic-rendering/minimal-ray-tracer-rendering-simple-shapes/ray-box-intersection
+        // Only necessary parts used because I don't need to calculate the hit point of the bounding Volumne
         private bool BoundingBoxHit(Ray ray) {
 
             double tx0;
@@ -153,8 +156,10 @@ namespace RayTracer
             double tz0;
             double tz1;
             
+            // Since AABB is oriented in world space, max and min bounds
+            // are relative to the ray direction, so we have to calculate them
+            // accordingly for each axis
             double inverseDX = 1 / ray.Direction.X;
-
             if (ray.Direction.X >= 0) 
             {
                 tx0 = (this.bMin.X - ray.Origin.X) * inverseDX;
@@ -178,8 +183,11 @@ namespace RayTracer
                 ty1 = (this.bMin.Y - ray.Origin.Y) * inverseDY;
             }
 
+            // Suggests that the ray is hitting outside the bounding volume
             if (tx0 > ty1 || tx1 < ty0) return false;
-
+            
+            // One of the scalars might be larger that the other, the largest
+            // scalar can be used to actually calculate the hit point
             if (tx0 < ty0) tx0 = ty0;
             if (tx1 > ty1) tx1 = ty1;
 
@@ -195,8 +203,10 @@ namespace RayTracer
                 tz1 = (this.bMin.Z - ray.Origin.Z) * inverseDZ;
             }
             
+            // Same as with X and Y
             if (tx0 > tz1 || tx1 < tz0) return false;
 
+            // no need to calculae hit point so we just return
             return true;
         }
 

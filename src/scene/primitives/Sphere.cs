@@ -30,6 +30,10 @@ namespace RayTracer
         /// </summary>
         /// <param name="ray">Ray to check</param>
         /// <returns>Hit data (or null if no intersection)</returns>
+        
+        // Ray-Sphere Intersection with Simple Math
+        // http://kylehalladay.com/blog/tutorial/math/2013/12/24/Ray-Sphere-Intersection.html
+        // Altered to accomodate Refraction (internal ray-sphere intersections)
         public RayHit Intersect(Ray ray)
         {
             Vector3 Orig2Cent = this.center - ray.Origin;
